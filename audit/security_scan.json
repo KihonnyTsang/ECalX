@@ -1,0 +1,26 @@
+{
+  "status": "PASSED_HEURISTIC_SCAN",
+  "files_scanned": 70,
+  "hits": [
+    {
+      "path": "scripts/audit_release.py",
+      "line": 11,
+      "rule": "local_path",
+      "disposition": "REVIEWED_CODE_LITERAL"
+    },
+    {
+      "path": "src/ecalx/presentation/replay.py",
+      "line": 65,
+      "rule": "local_path",
+      "disposition": "REVIEWED_CODE_LITERAL"
+    }
+  ],
+  "unresolved_count": 0,
+  "hash_errors": [],
+  "whitelist_errors": [],
+  "limitations": [
+    "Regex scan is not independent human security or legal review",
+    "Does not prove absence of all secrets, unmarked copying or arbitrary scientific claims",
+    "No Git history or binary images included; no dependency binaries scanned here"
+  ]
+}

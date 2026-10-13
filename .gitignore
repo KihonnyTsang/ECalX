@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.env*
+*.sqlite*
+*.db*
+data/
+models/
+reports/
+demo/review_candidate/
+OWNER_APPROVAL.json

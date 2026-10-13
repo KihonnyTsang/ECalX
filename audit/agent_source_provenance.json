@@ -1,0 +1,110 @@
+{
+  "status": "OWNER_REVIEW_PENDING",
+  "basis": "P3-0 owner-confirmed original code MIT scope; no research assets or authorization inherited",
+  "files": [
+    {
+      "path": "src/ecalx/agent/runtime.py",
+      "source_path": "src/ecalx/agent/runtime.py",
+      "source_sha256": "11d178e6d3d58e38ea6a7b69e86e31b726119eb23826682c297d845199c4c4c7",
+      "release_sha256": "f5855bd7e34fe2fabb929e094b5b623909f2d75733cd5d3a8755c8bf1927b281",
+      "byte_identical": false,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/agent/siliconflow.py",
+      "source_path": "src/ecalx/agent/siliconflow.py",
+      "source_sha256": "dcf39f91be1ca2041d8db6990597c7524d6af6903ff5f431197973a57d739177",
+      "release_sha256": "6975294fbdf63d6318f994889894ea4e41e1e1be26a5c56b01b9c4edaffa08b8",
+      "byte_identical": false,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/agent/llm.py",
+      "source_path": "src/ecalx/agent/llm.py",
+      "source_sha256": "c4ca98206abd43e557294f4b8d1efa14fcf6b6bc5c06e41636eb967d5e945c0f",
+      "release_sha256": "58a4d02e7f627abb5659691360c456730e0a4daef2eb2970ca1e2dcd5ec5f759",
+      "byte_identical": false,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/agent/config.py",
+      "source_path": "src/ecalx/agent/config.py",
+      "source_sha256": "0674c2d796fddede882246e623dcf11de36e72c3920e50c2113dfc6db1bf445b",
+      "release_sha256": "0674c2d796fddede882246e623dcf11de36e72c3920e50c2113dfc6db1bf445b",
+      "byte_identical": true,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/agent/planning.py",
+      "source_path": "src/ecalx/agent/planning.py",
+      "source_sha256": "d9724be110b5a5d8fa1761b303a1d0435fe8a748282fd2274f11aa6b6e263094",
+      "release_sha256": "d9724be110b5a5d8fa1761b303a1d0435fe8a748282fd2274f11aa6b6e263094",
+      "byte_identical": true,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/agent/capabilities.py",
+      "source_path": "src/ecalx/agent/capabilities.py",
+      "source_sha256": "95cfb0128de3114a18c40ca46530318caf96bd9763db509ff564dbde9fa480d4",
+      "release_sha256": "95cfb0128de3114a18c40ca46530318caf96bd9763db509ff564dbde9fa480d4",
+      "byte_identical": true,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/agent/faithfulness.py",
+      "source_path": "src/ecalx/agent/faithfulness.py",
+      "source_sha256": "d2290c8e70a00d85a25d9e4793efc5d1dd96e478e006c345b7f398fcfa5593bb",
+      "release_sha256": "d2290c8e70a00d85a25d9e4793efc5d1dd96e478e006c345b7f398fcfa5593bb",
+      "byte_identical": true,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/agent/api_policy.py",
+      "source_path": "src/ecalx/agent/api_policy.py",
+      "source_sha256": "69e0d26b79fab6d285a384b167500f9230d987e98c7945609e4137b296d7fc99",
+      "release_sha256": "4cb89df997191cea7f47c4d6aeaa53d73b768566215e64c55a17c8d3b27980c3",
+      "byte_identical": false,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/agent/api_reconciliation.py",
+      "source_path": "src/ecalx/agent/api_reconciliation.py",
+      "source_sha256": "6084db777ef980475aa5b21f2d63eadb6454f6e6155909907cd1a8489c813c1a",
+      "release_sha256": "28df6c5ce5f339b2aba8a654a46ead421d3440bb76769469b36c8024a682eb7a",
+      "byte_identical": false,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/experiments/storage.py",
+      "source_path": "src/ecalx/experiments/storage.py",
+      "source_sha256": "1d9880d0122c5bf4078526cf0859b8aa1e99aac0b3f9591f0e5db8978200410a",
+      "release_sha256": "1d9880d0122c5bf4078526cf0859b8aa1e99aac0b3f9591f0e5db8978200410a",
+      "byte_identical": true,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/parsing/__init__.py",
+      "source_path": "src/ecalx/parsing/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_identical": true,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/parsing/requirements.py",
+      "source_path": "src/ecalx/parsing/requirements.py",
+      "source_sha256": "873901c7aec849e36d2a50a0c5e2cafbc5f978c3064deac1436e6246264928ef",
+      "release_sha256": "873901c7aec849e36d2a50a0c5e2cafbc5f978c3064deac1436e6246264928ef",
+      "byte_identical": true,
+      "prior_decision": "ALLOW"
+    },
+    {
+      "path": "src/ecalx/parsing/units.py",
+      "source_path": "src/ecalx/parsing/units.py",
+      "source_sha256": "cf4ac8d06f47e961e32b321429d50fca6c5991dc6302c3b2dd03d518106537ed",
+      "release_sha256": "cf4ac8d06f47e961e32b321429d50fca6c5991dc6302c3b2dd03d518106537ed",
+      "byte_identical": true,
+      "prior_decision": "ALLOW"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "evidence_mode": "TEST_ONLY",
+  "status": "OWNER_REVIEW",
+  "source_payload_sha256": "35bec3d5aac35463c3216ce6e613d6f4ae0539d51da61ef7ca1c844464088b0a",
+  "historical_source_provenance_sha256": "ccdfcae4b0f5a19b1291f4c7ea39bce19b18f75c6acb39e8be58db58ea87caf0",
+  "historical_authorship_declaration": {
+    "evidence_mode": "TEST_ONLY",
+    "status": "PENDING_INDEPENDENT_REVIEW",
+    "authorship": "TEST_ONLY independently authored in this P2 session with Codex AI assistance; isolated pre-review revision of authored simulation rounds and wording",
+    "source_material": "TEST_ONLY task instructions and existing presentation JSON field contracts only",
+    "not_derived_from": [
+      "LIVE_LLM history",
+      "source A/B rows",
+      "scientific originals",
+      "papers",
+      "third-party images",
+      "model artifacts"
+    ],
+    "composition_scope": "TEST_ONLY two authored placeholder ratios; no novelty or existence claim",
+    "scientific_values": "TEST_ONLY no DOI, measurement, prediction, experiment or performance values",
+    "execution": "TEST_ONLY_AUTHORED_SIMULATED five prewritten narrative rounds; no real LLM, network requests or tools executed",
+    "privacy_self_check": "TEST_ONLY private paths, secrets and ledger fields absent; automated scan supplemented by pending human review",
+    "rights_self_check": "TEST_ONLY no external dataset copied; owner authorship/rights/license confirmation pending",
+    "independent_review": "PENDING_INDEPENDENT_REVIEW",
+    "owner_release_authorization": null,
+    "M5_enabled": false
+  },
+  "current_policy": "OWNER_REVIEW; independent publication review is optional, no independent scientific approval claimed",
+  "owner_release_authorization": null,
+  "M5_enabled": false
+}
