@@ -1,0 +1,4 @@
+formula,temperature,temperature_unit,e_start,e_end,e_delta,e_max,field_unit,field_path,method,url,sample_form,protocol,data_kind
+BaTiO3,25,°C,0,2,2,3,kV/mm,loading,direct,https://example.invalid/SYNTHETIC_TEST_DATA/a,bulk ceramic,synthetic-protocol-A,SYNTHETIC_TEST_DATA
+SrTiO3,298.15,K,,,20,30,kV/cm,unknown,indirect,https://example.invalid/SYNTHETIC_TEST_DATA/b,bulk ceramic,synthetic-protocol-B,SYNTHETIC_TEST_DATA
+Ba0.8Sr0.2TiO3,,,,,,,,unknown,unknown,https://example.invalid/SYNTHETIC_TEST_DATA/c,bulk ceramic,synthetic-chemistry-only,SYNTHETIC_TEST_DATA

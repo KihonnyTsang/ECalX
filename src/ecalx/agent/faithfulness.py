@@ -12,13 +12,13 @@ INTERPRETATIONS = {
 
 BOUNDARIES = {
     'production_model': 'NOT_TRAINED',
-    'research_model': 'TRAINED_UNVERIFIED',
+    'research_model': 'NOT_PROVIDED',
     'quantitative_prediction': 'REFUSED_NO_APPROVED_MODEL',
     'candidate_performance': 'UNKNOWN_UNVERIFIED_CHEMICAL_RULE_CANDIDATES',
     'virtual_feedback': 'SIMULATED_OR_HISTORICAL_REPLAY_NOT_REAL_MEASUREMENT',
     'notice': 'evidence_only是可核查来源证据；当前查询若无满足完整协议的可采纳候选，仅表示本次未形成可信推荐，'
               '不代表原始实验数据无价值。'
-              'NOT_TRAINED仅指正式预测模型；已有研究模型TRAINED_UNVERIFIED。'
+              'NOT_TRAINED仅指正式预测模型；公开模式未提供研究模型。'
               '无法可靠量化新组成ΔT；生成规则与化学检查不能替代实测。'
               '直接实测与间接估算保留原方法；SIMULATED不是REAL_MEASUREMENT。',
 }

@@ -1,0 +1,8 @@
+formula,temperature,temperature_unit,e_start,e_end,e_delta,e_max,e_peak,field_unit,field_path,method,sample_form,delta_t,delta_t_unit,delta_t_basis,sign_convention,doi,data_kind
+BaTiO3,303,K,,,20,,,kV/cm,unknown,direct,bulk ceramic,1,K,temperature_drop_magnitude,positive_drop,10.1234/synthetic-direct,SYNTHETIC_TEST_DATA
+BaTiO3,303,K,,,20,,,kV/cm,unknown,direct,bulk ceramic,3,K,temperature_drop_magnitude,positive_drop,10.1234/synthetic-direct,SYNTHETIC_TEST_DATA
+BaTiO3,303,K,,,20,,,kV/cm,unknown,indirect,bulk ceramic,-0.5,K,maxwell_estimate,signed_difference,10.1234/synthetic-indirect,SYNTHETIC_TEST_DATA
+BaTiO3,303,K,,,,20,,kV/cm,unknown,direct,bulk ceramic,4,K,temperature_drop_magnitude,positive_drop,10.1234/synthetic-cap,SYNTHETIC_TEST_DATA
+BaTiO3,303,K,,,,,20,kV/cm,unknown,direct,bulk ceramic,5,K,temperature_drop_magnitude,positive_drop,10.1234/synthetic-peak,SYNTHETIC_TEST_DATA
+BaTiO3,303,K,0,20,20,,,kV/cm,loading,direct,bulk ceramic,2,K,temperature_drop_magnitude,positive_drop,10.1234/synthetic-loading,SYNTHETIC_TEST_DATA
+BaTiO3,303,K,10,30,20,,,kV/cm,loading,direct,bulk ceramic,6,K,temperature_drop_magnitude,positive_drop,10.1234/synthetic-bias,SYNTHETIC_TEST_DATA

@@ -11,11 +11,12 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from ecalx.domain.constraints import DiscoveryRequest
+from ecalx.experiments import RealLaboratory, VirtualLaboratory
 from ecalx.experiments.contracts import ExperimentError, ReviewInput, AuthorizeUpdateInput
 from ecalx.experiments.storage import Store, dump, digest, identifier
 from .contracts import INPUTS, STATEFUL, Plan, Finish, ToolOutput, Goals
 from .llm import ProviderError, redact
-from .tools import ToolExecutor
+from .tools import ScientificTools, ReadOnlyEvidence
 from .capabilities import available_tools
 from .faithfulness import grounded_metadata, audit_report, INTERPRETATIONS
 
@@ -34,13 +35,13 @@ def resolve_pointer(data, pointer):
 
 
 class ResearchAgent(Store):
-    def __init__(self, root, *, storage_root, tools: ToolExecutor):
-        # Release adapter: host must explicitly inject tools and a new task store.
-        # Never discover or construct private evidence/laboratory services.
+    def __init__(self, root, storage_root=None, evidence_path=None, *, tools_factory=None):
         self.root=Path(root)
-        self.storage_root=Path(storage_root)
-        self.tools=tools
+        self.storage_root=Path(storage_root or self.root/'data/experiments/research_agent')
         super().__init__(self.storage_root/'tasks.sqlite3')
+        repository=ReadOnlyEvidence(evidence_path or self.root/'data/processed/evidence.sqlite3')
+        self.tools=(tools_factory(self.root,repository) if tools_factory else
+            ScientificTools(self.root,repository,VirtualLaboratory(self.storage_root,self.root),RealLaboratory(self.storage_root)))
         with self.connect() as db:
             db.execute('CREATE TABLE IF NOT EXISTS research_tasks(id TEXT PRIMARY KEY, payload TEXT)')
 

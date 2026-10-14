@@ -1,133 +1,45 @@
 {
-  "status": "LOCAL_CANDIDATE_OWNER_REVIEW",
-  "version": "0.1.0rc3",
-  "artifact_revision": "0.1.0rc3-final1",
-  "owner_approved": false,
-  "latest_payload_sha256": "35bec3d5aac35463c3216ce6e613d6f4ae0539d51da61ef7ca1c844464088b0a",
-  "final1_minimal_revision": {
-    "changes": [
-      "Approval-neutral README and necessary demo/governance wording",
-      "Generic LIVE_LLM scientific limits instead of historical task ID"
-    ],
-    "tests": {
-      "release_source": {
-        "tests": 113,
-        "failures": 0,
-        "errors": 0,
-        "skipped": 0,
-        "status": "PASSED"
-      },
-      "unchanged_installed_core_with_final1_app": {
-        "tests": 113,
-        "failures": 0,
-        "errors": 0,
-        "skipped": 0,
-        "status": "PASSED"
-      },
-      "isolated_actual_historical_failed_display": {
-        "tests": 2,
-        "failures": 0,
-        "errors": 0,
-        "skipped": 0,
-        "status": "PASSED"
-      }
-    },
-    "test_counts_note": "Source and installed runs repeat the same tests; not independent scientific evidence.",
-    "environment": "Reused previous isolated rc3 Python 3.11 venv; no reinstall or network dependency download this round.",
-    "all_29_core_modules_byte_identical_to_rc3": true,
-    "LIVE_LLM_authenticity_checks_and_owner_gate_byte_identical": true,
-    "actual_browser": {
-      "formal_A": "EMPTY_NO_HISTORY",
-      "formal_B": "EMPTY_OWNER_REVIEW",
-      "isolated_preview": "FIVE_AUTHORED_ROUNDS_TWO_UNVERIFIED_CANDIDATES",
-      "new_check_servers": "STOPPED_AFTER_CHECK"
-    },
-    "prewritten_rounds": 5,
-    "simulated_receipts": 5,
-    "unverified_candidates": 2,
-    "API_requests": 0,
-    "scientific_execution": 0,
-    "Git_actions": "NONE",
-    "published": false,
-    "initial_attempt": "Four scope-hash failures because README binding refresh command used wrong cwd; refreshed hashes, rerun passed. Original failure logs retained outside release.",
-    "remaining": "Actual owner explicit confirmation of this final artifact, hashes and complete scope."
-  },
-  "prior_frozen_rc3_validation_historical_record_only": {
-    "status": "LOCAL_CANDIDATE_OWNER_REVIEW",
-    "version": "0.1.0rc3",
-    "owner_approved": false,
-    "latest_payload_sha256": "35bec3d5aac35463c3216ce6e613d6f4ae0539d51da61ef7ca1c844464088b0a",
-    "prewritten_rounds": 5,
-    "simulated_receipts": 5,
-    "unverified_candidates": 2,
-    "fresh_environment": {
-      "include_system_site_packages": false,
-      "official_PyPI_locked_dependencies": "PASSED",
-      "own_wheel_install": "PASSED",
-      "pip_check": "PASSED",
-      "installed_modules_byte_identical": 29,
-      "root_MIT_in_wheel": true
-    },
-    "tests": {
-      "clean_release_source": {
-        "tests": "108",
-        "failures": "0",
-        "errors": "0",
-        "skipped": "0",
-        "time": "1.903",
-        "status": "PASSED"
-      },
-      "clean_release_installed": {
-        "tests": "108",
-        "failures": "0",
-        "errors": "0",
-        "skipped": "0",
-        "time": "1.903",
-        "status": "PASSED"
-      },
-      "original_project_full": {
-        "tests": "1068",
-        "failures": "0",
-        "errors": "0",
-        "skipped": "0",
-        "time": "918.519",
-        "status": "PASSED"
-      },
-      "original_presentation_recheck": {
-        "tests": "35",
-        "failures": "0",
-        "errors": "0",
-        "skipped": "0",
-        "time": "2.054",
-        "status": "PASSED"
-      }
-    },
-    "initial_full_regression": {
-      "tests": 1068,
-      "passed": 1050,
-      "failed": 18,
-      "cause": "ValueError instead of existing ReplayError interface; fixed; original failure logs retained outside release"
-    },
-    "test_counts_note": "Source and installed release runs repeat the same tests; do not sum as independent test cases or scientific evidence.",
-    "actual_browser": {
-      "environment": "Fresh owner-review venv",
-      "formal_A": "EMPTY_NO_HISTORY",
-      "formal_B": "EMPTY_OWNER_REVIEW",
-      "isolated_preview": "FIVE_AUTHORED_ROUNDS_TWO_UNVERIFIED_COMPOSITIONS",
-      "chemical_pass": "SIMULATED_NOT_EXECUTED"
-    },
-    "dependency_review": {
-      "packages": 44,
-      "license_notice_files": 81,
-      "unknown_metadata": 0,
-      "streamlit_local_license_text": "KNOWN_MISSING_NOT_VENDORED"
-    },
-    "API_requests": 0,
-    "scientific_experiments": 0,
-    "training": 0,
-    "M5_enabled": false,
-    "Git_actions": "NONE",
-    "published": false,
-    "remaining": "Actual owner final version/hash/scope confirmation; explicit publication execution authorization if later desired."
-  }
+  "version": "0.2.0b1",
+  "planned_git_tag": "v0.2.0-beta.1",
+  "platform": "macOS ARM64",
+  "python": "3.11",
+  "fresh_source_install": "PASS",
+  "fresh_wheel_install": "PASS",
+  "pip_check": "PASS (both environments)",
+  "pytest_passed": 81,
+  "pytest_failed": 0,
+  "delta_queries_kV_cm": [
+    10,
+    20,
+    30,
+    40,
+    50,
+    12.5,
+    0.125,
+    0.001
+  ],
+  "installed_csv_rows": 8,
+  "installed_excel_rows": 1,
+  "installed_complete_tasks": 8,
+  "installed_offline_followups": 24,
+  "installed_worker": "PASS",
+  "source_or_private_access_attempts": 0,
+  "browser_ui_version": "0.2.0b1",
+  "browser_markdown_download": "PASS (byte-identical to saved report)",
+  "browser_offline_followups": 2,
+  "byo_online_independent_acceptance": "NOT_RUN",
+  "paid_api_calls": 0,
+  "training": 0,
+  "formal_delta_T_delta_S": "unknown",
+  "M5_enabled": false,
+  "synthetic_test_data_only": true,
+  "dependency_license_metadata_count": 47,
+  "dependencies_without_license_metadata": 0,
+  "prior_git_history_commits": 1,
+  "prior_git_history_unique_blobs_scanned": 69,
+  "prior_history_sensitive_findings": 0,
+  "selected_development_source_files_unchanged": 98,
+  "public_owner_approval": "PENDING_FINAL_CONTENT_CONFIRMATION",
+  "linux_wsl2_acceptance": "NOT_RUN",
+  "native_windows": "UNSUPPORTED"
 }

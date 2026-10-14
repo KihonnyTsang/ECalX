@@ -1,90 +1,125 @@
-"""Read-only heuristic scan and hash verification; never prints matched secret values."""
+"""Audit the explicit public source inventory; never read credentials/workspaces.
+
+--write freezes manifests after scanning. It does not approve publication.
+Generated files have no timestamps, paths outside this checkout, or self-hashes.
+"""
+import argparse
 import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
-RULES = {
-    'credential_like': re.compile(r'\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[A-Z0-9]{16})\b|-----BEGIN [A-Z ]*PRIVATE KEY'),
-    'local_path': re.compile(r'(?:/Users/|/home/)[^\s\"\'<>]+|[A-Za-z]:[\\/](?:Users|Documents)[\\/][^\s]+'),
-    'presigned_url': re.compile(r'https?://[^\s\"\'<>]*(?:[?&](?:X-Amz-[^=]*|X-Goog-[^=]*|Signature|sig|access_token)=)[^\s\"\'<>]*', re.I),
-    'assigned_secret': re.compile(r'(?i)(?:api_key|access_token|secret_key|password)\s*[=:]\s*[\"\']([^\"\'\n]{8,})'),
-    'private_contact': re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'),
+MANIFESTS = {'audit/public_files.txt', 'audit/SHA256SUMS'}
+ROOT_FILES = {'.gitignore', 'LICENSE', 'README.md', 'app.py', 'pyproject.toml', 'requirements-tested.txt'}
+PUBLIC_DIRS = {'src', 'ecalx_local', 'tests', 'examples', 'docs', 'scripts', 'audit', '.streamlit'}
+GENERATED = {'.git', '.venv', 'build', 'dist', '.pytest_cache', '__pycache__'}
+SUFFIXES = {'.py', '.md', '.toml', '.csv', '.json', '.css', '.txt'}
+FAKE_KEYS = {
+    'tests/test_byo.py': {'sk-BYO_FAKE_KEY_NEVER_SENT'},
+    'tests/test_http_contract.py': {'sk-TEST_HTTP_ONLY_NEVER_SENT'},
 }
-BLOCKED_DIRS = {'.git','.venv','.agents','.codex','.aws','data','models','reports','__pycache__','build','dist'}
-BLOCKED_SUFFIXES = {'.sqlite','.sqlite3','.db','.pyc','.joblib','.pkl','.pickle','.pt','.pth','.pdf','.csv','.xlsx','.jpg','.png'}
+KEY_PATTERN = re.compile(r'(?<![A-Za-z])sk-[A-Za-z0-9_-]{12,}')
+PATH_PATTERN = re.compile(r'/(?:Users|home)/[A-Za-z0-9_.-]+/')
+SECRET_ASSIGNMENT = re.compile(r'''(?i)(?:api[_-]?key|access[_-]?token|password|secret)\s*[=:]\s*["']([A-Za-z0-9_./+-]{16,})["']''')
 
 
-def scan():
-    hits = []
-    paths = []
-    literal_reviews = json.loads((ROOT/'audit/literal_reviews.json').read_text()) if (ROOT/'audit/literal_reviews.json').exists() else []
-    for path in sorted(ROOT.rglob('*')):
-        relative = path.relative_to(ROOT).as_posix()
-        if path.is_symlink():
-            hits.append({'path':relative,'rule':'symlink','line':None}); continue
-        if path.is_dir():
-            if path.name in BLOCKED_DIRS or path.suffix == '.egg-info':
-                hits.append({'path':relative,'rule':'excluded_directory','line':None})
+def digest(raw):
+    return hashlib.sha256(raw).hexdigest()
+
+
+def sensitive_literals(rel, raw):
+    errors = []
+    try:
+        content = raw.decode('utf-8')
+    except UnicodeDecodeError:
+        return [rel + ': non-text public file']
+    if PATH_PATTERN.search(content):
+        errors.append(rel + ': personal absolute path')
+    allowed = FAKE_KEYS.get(rel, set())
+    if rel in {'scripts/audit_release.py', 'audit/security_scan.json'}:
+        allowed = set().union(*FAKE_KEYS.values())
+    if any(key not in allowed for key in KEY_PATTERN.findall(content)):
+        errors.append(rel + ': unapproved key literal')
+    if re.search(r'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----', content):
+        errors.append(rel + ': private key')
+    for value in SECRET_ASSIGNMENT.findall(content):
+        if value not in allowed:
+            errors.append(rel + ': secret assignment')
+    if re.search(r'github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[A-Z0-9]{16}', content):
+        errors.append(rel + ': credential token')
+    return errors
+
+
+def inventory():
+    files, errors = {}, []
+    for p in sorted(ROOT.rglob('*')):
+        parts = p.relative_to(ROOT).parts
+        if any(part in GENERATED or part.endswith('.egg-info') for part in parts):
             continue
-        if not path.is_file():
-            hits.append({'path':relative,'rule':'special_file','line':None}); continue
-        paths.append(relative)
-        if path.name.startswith('.env') or path.suffix.lower() in BLOCKED_SUFFIXES or path.name.endswith(('-wal','-shm','-journal')):
-            hits.append({'path':relative,'rule':'excluded_asset','line':None})
-        raw = path.read_bytes()
-        text = raw.decode('utf-8',errors='strict')
-        sha = hashlib.sha256(raw).hexdigest()
-        for line, value in enumerate(text.splitlines(),1):
-            for name, regex in RULES.items():
-                matches=list(regex.finditer(value))
-                if not matches: continue
-                if name=='assigned_secret' and all(m.group(1).startswith('TEST_ONLY') for m in matches):
-                    continue
-                disposition = 'REVIEW'
-                if any(r['path']==relative and r['line']==line and r['rule']==name and r['sha256']==sha for r in literal_reviews):
-                    disposition='REVIEWED_CODE_LITERAL'
-                hits.append({'path':relative,'line':line,'rule':name,'disposition':disposition})
-    digest = ROOT/'audit/SHA256SUMS'
-    hash_errors=[]
-    hashed_paths=[]
-    if digest.exists():
-        for line in digest.read_text().splitlines():
-            expected, relative=line.split('  ',1)
-            hashed_paths.append(relative)
-            path=ROOT/relative
-            if not path.resolve().is_relative_to(ROOT.resolve()):
-                hash_errors.append(relative); continue
-            if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest()!=expected:
-                hash_errors.append(relative)
-    actual=set(paths)
-    if 'OWNER_APPROVAL.json' in actual:
-        sys.path.insert(0, str(ROOT/'src'))
-        from ecalx.presentation.owner_review import approved_review
+        rel = '/'.join(parts)
+        if p.is_symlink():
+            errors.append(rel + ': symlink'); continue
+        if not p.is_file():
+            continue
+        if rel not in ROOT_FILES and parts[0] not in PUBLIC_DIRS:
+            errors.append(rel + ': outside public scope')
+        if rel not in ROOT_FILES and rel not in MANIFESTS and p.suffix not in SUFFIXES:
+            errors.append(rel + ': unsupported public file type')
+        if any(part in {'data', 'models', 'raw', 'var', 'tasks', 'config'} for part in parts[:-1]) and parts[0] != 'src':
+            errors.append(rel + ': private asset directory')
+        if p.name.startswith('.env') or p.name in {'OWNER_APPROVAL.json', '.DS_Store'}:
+            errors.append(rel + ': forbidden file')
+        raw = p.read_bytes()
+        errors.extend(sensitive_literals(rel, raw))
+        files[rel] = digest(raw)
+    # An ignored build/workspace file must never sneak into a Git commit.
+    if (ROOT/'.git').exists():
+        tracked = subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0')
+        errors.extend(rel + ': tracked generated/private file' for rel in tracked if rel and (ROOT/rel).exists() and rel not in files)
+    return files, errors
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--write', action='store_true')
+    args = parser.parse_args()
+    files, errors = inventory()
+    version = tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['version']
+    package = (ROOT/'src/ecalx/__init__.py').read_text()
+    if version != '0.2.0b1' or '__version__ = "0.2.0b1"' not in package:
+        errors.append('project/package version mismatch')
+    report = {'version': version, 'status': 'PASS' if not errors else 'FAIL',
+              'scanned_public_files': len(set(files) | MANIFESTS | {'audit/security_scan.json'}),
+              'errors': errors, 'fake_key_exceptions': FAKE_KEYS,
+              'online_acceptance': 'NOT_RUN', 'owner_approval': 'PENDING_FINAL_CONTENT_CONFIRMATION',
+              'scope': 'public source tree; generated directories excluded and checked against Git index',
+              'personal_assets_distributed': False, 'publication_authorized': False}
+    report['fake_key_exceptions'] = {k: sorted(v) for k, v in FAKE_KEYS.items()}
+    if args.write and not errors:
+        path = ROOT/'audit/security_scan.json'
+        path.write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n')
+        files['audit/security_scan.json'] = digest(path.read_bytes())
+        (ROOT/'audit/public_files.txt').write_text('\n'.join(sorted(set(files) | MANIFESTS))+'\n')
+        (ROOT/'audit/SHA256SUMS').write_text(''.join(files[rel]+'  '+rel+'\n' for rel in sorted(files) if rel not in MANIFESTS))
+    elif not errors:
         try:
-            approved_review(ROOT, json.loads((ROOT/'demo/public/review.json').read_text()))
-        except (OSError, ValueError, KeyError, TypeError):
-            hash_errors.append('INVALID_OWNER_APPROVAL_RECEIPT')
-        actual.remove('OWNER_APPROVAL.json')
-    if set(hashed_paths) != actual-{'audit/SHA256SUMS'} or len(hashed_paths) != len(set(hashed_paths)):
-        hash_errors.append('SHA256_COVERAGE_OR_DUPLICATE_ERROR')
-    whitelist=ROOT/'audit/release_whitelist.tsv'
-    whitelist_errors=[]
-    if whitelist.exists():
-        listed={line.split('\t')[0] for line in whitelist.read_text().splitlines()[1:]}
-        whitelist_errors=sorted(actual.symmetric_difference(listed))
-    unresolved=[h for h in hits if h.get('disposition')!='REVIEWED_CODE_LITERAL']
-    return {'status':'PASSED_HEURISTIC_SCAN' if not (unresolved or hash_errors or whitelist_errors) else 'REVIEW_REQUIRED',
-            'files_scanned':len(paths),'hits':hits,'unresolved_count':len(unresolved),
-            'hash_errors':hash_errors,'whitelist_errors':whitelist_errors,
-            'limitations':['Regex scan is not independent human security or legal review',
-                           'Does not prove absence of all secrets, unmarked copying or arbitrary scientific claims',
-                           'No Git history or binary images included; no dependency binaries scanned here']}
+            expected = (ROOT/'audit/public_files.txt').read_text().splitlines()
+            if expected != sorted(files):
+                errors.append('public inventory mismatch')
+            sums = {rel: sha for sha, rel in (line.split('  ', 1) for line in (ROOT/'audit/SHA256SUMS').read_text().splitlines())}
+            if sums != {rel: sha for rel, sha in files.items() if rel not in MANIFESTS}:
+                errors.append('SHA256 mismatch')
+        except (OSError, ValueError):
+            errors.append('missing/invalid release manifests; freeze with --write')
+    print(json.dumps({'version': version, 'status': 'FAIL' if errors else 'PASS',
+                      'files': report['scanned_public_files'], 'errors': errors,
+                      'online_acceptance': 'NOT_RUN'}, ensure_ascii=False, indent=2))
+    return bool(errors)
 
 
 if __name__ == '__main__':
-    result=scan()
-    print(json.dumps(result,ensure_ascii=False,indent=2))
-    sys.exit(0 if result['status']=='PASSED_HEURISTIC_SCAN' else 1)
+    sys.exit(main())

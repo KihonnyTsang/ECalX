@@ -1,24 +1,22 @@
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
-
 [project]
-name = "ecalx-agent-portfolio"
-version = "0.1.0rc3"
-description = "ECalX production-derived Agent core and offline read-only portfolio"
+name = "ecalx-byo"
+version = "0.2.0b1"
+description = "Local evidence-grounded materials research with your API and data"
+license = {file = "LICENSE"}
 requires-python = ">=3.11"
-license = "MIT"
-dependencies = ["streamlit>=1.50,<2", "pydantic>=2.10,<3"]
-
+dependencies = ["streamlit>=1.40,<2", "pandas>=2.2,<3", "openpyxl>=3.1,<4", "pydantic>=2.10,<3", "numpy>=1.26,<3"]
 [project.optional-dependencies]
-test = ["pytest>=8,<9"]
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
+dev = ["pytest>=8,<9"]
+[project.scripts]
+ecalx = "ecalx_local.cli:main"
+[tool.setuptools]
+packages = ["ecalx_local", "ecalx", "ecalx.agent", "ecalx.domain", "ecalx.materials", "ecalx.parsing", "ecalx.data", "ecalx.services", "ecalx.experiments"]
+[tool.setuptools.package-dir]
+ecalx = "src/ecalx"
+[tool.setuptools.package-data]
+ecalx_local = ["ui.css", "app.py"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src", "app"]
-addopts = "-p no:cacheprovider"
-
-markers = ["task_store: permits only new temporary SQLite task/policy stores"]

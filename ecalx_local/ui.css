@@ -1,0 +1,78 @@
+:root { --ink:#193248; --muted:#627583; --line:#e2e8e8; --teal:#117c78; --surface:#fcfcfa; }
+html, body, [class*="css"], .stApp {font-family: -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);}
+.stApp {background:var(--surface);}
+.stMainBlockContainer {max-width:1040px;padding:2rem 3rem 3rem;}
+.stMain h1 {font-size:2rem;font-weight:650;letter-spacing:-.045em;line-height:1.4;margin:0 0 .6rem;padding-top:.2rem;}
+.stMain h2 {font-size:1.4rem;font-weight:650;letter-spacing:-.025em;}
+.stMain h3 {font-size:1.1rem;font-weight:600;}
+p, li {font-size:15px;line-height:1.8;overflow-wrap:anywhere;}
+.stCaption p {color:var(--muted);font-size:12.5px;line-height:1.7;}
+.eyebrow {font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--teal);margin:1rem 0 .7rem;}
+.intro {color:var(--muted);font-size:15px;margin-bottom:1.3rem;}
+.brand {display:flex;align-items:center;gap:10px;font-size:24px;font-weight:700;letter-spacing:-.04em;padding:10px 0 2px;}
+.brand-mark {display:inline-grid;place-items:center;background:var(--ink);color:white;width:32px;height:32px;border-radius:9px;font-size:20px;}
+section[data-testid="stSidebar"] {background:#f0f4f3;border-right:1px solid var(--line);min-width:250px;max-width:280px;}
+section[data-testid="stSidebar"] .stSidebarBlockContainer {padding:1.6rem 1.1rem;}
+section[data-testid="stSidebar"] button {text-align:left;justify-content:flex-start;}
+section[data-testid="stSidebar"] button p {font-size:13px;line-height:1.55;}
+section[data-testid="stSidebar"] [data-testid="stRadio"] label {padding:6px 0;}
+section[data-testid="stSidebar"] [data-testid="stRadio"] label p {font-size:14px;font-weight:550;}
+section[data-testid="stSidebar"] hr {margin:1rem 0;}
+.stTextInput input,.stTextArea textarea {font-size:15px;line-height:1.8;}
+.stTextArea textarea {padding:14px 16px;}
+[data-testid="stTextInputRootElement"],[data-baseweb="textarea"],[data-baseweb="select"] > div {border-radius:10px;}
+[data-testid="stForm"] {border:none;padding:0;}
+.stButton button,.stDownloadButton button,.stFormSubmitButton button {border-radius:9px;min-height:40px;font-weight:550;box-shadow:none;}
+button[kind="primary"],button[kind="primaryFormSubmit"] {background:var(--teal);border-color:var(--teal);color:white;}
+button:focus-visible, input:focus-visible, textarea:focus-visible {outline:3px solid #78b9b6 !important;outline-offset:2px;}
+[data-testid="stExpander"] {border-color:var(--line);border-radius:12px;background:#fff;}
+[data-testid="stExpander"] details summary p {font-size:14px;font-weight:550;}
+[data-testid="stVerticalBlockBorderWrapper"] > div {border-color:var(--line) !important;border-radius:14px;}
+[data-testid="stChatMessage"] {background:transparent;border-radius:14px;padding:1rem 0;gap:14px;}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {background:#f0f4f4;padding:1rem 1.2rem;}
+[data-testid="stChatMessageAvatarAssistant"] {background:var(--teal);color:white;}
+[data-testid="stChatMessageContent"] {min-width:0;}
+[data-testid="stBottom"] {background:var(--surface);}
+[data-testid="stBottomBlockContainer"] {max-width:1040px;padding-left:3rem;padding-right:3rem;padding-bottom:1rem;}
+[data-testid="stChatInput"] {border:1px solid #b9cdcc;border-radius:16px;box-shadow:0 4px 20px #19324808;background:white;}
+[data-testid="stMetric"] {padding:12px 16px;background:#f1f5f4;border-radius:12px;}
+[data-testid="stMetricValue"] {font-size:1.45rem;}
+[data-testid="stMetricLabel"] p {font-size:12px;color:var(--muted);}
+[data-testid="stTabs"] [role="tablist"] {gap:22px;border-bottom:1px solid var(--line);}
+[data-testid="stTabs"] [role="tab"] {font-size:14px;}
+[data-testid="stAlert"] {border-radius:10px;}
+[data-testid="stAlert"] p {font-size:13px;line-height:1.75;}
+.badge {display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;background:#edf1f3;color:#516472;font-size:11px;font-weight:600;line-height:1.7;}
+.badge.teal {background:#e5f3ef;color:#176a61;}
+.badge.risk {background:#fbece9;color:#9c493a;}
+.task-meta {display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted);margin-bottom:1rem;}
+.formula {font-size:24px;line-height:1.7;font-weight:600;letter-spacing:.015em;color:var(--ink);overflow-wrap:anywhere;word-break:break-word;margin:7px 0;}
+.formula sub {font-size:65%;bottom:-.2em;}
+.science-note {background:#f2f5f5;border-left:3px solid #b0c8c5;border-radius:0 8px 8px 0;padding:11px 14px;font-size:12px;line-height:1.85;color:#546875;margin:12px 0;}
+.card-meta {display:flex;gap:7px;flex-wrap:wrap;margin:3px 0 10px;}
+.card-performance {display:flex;gap:24px;padding:10px 0;margin:2px 0 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:13px;color:var(--muted);}
+.card-performance strong {color:var(--ink);font-weight:550;}
+.home-top {margin-top:5vh;}
+.home-foot {display:flex;gap:22px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin:20px 0;}
+[data-testid="stToolbar"] {right:1rem;}
+@media(min-width:1200px) {.home-top {margin-top:8vh;}}
+@media(prefers-reduced-motion:reduce) {* {animation:none !important;transition:none !important;}}
+@media(max-width:760px) {
+.stMainBlockContainer {padding:1.25rem 1.15rem 2rem;}
+.stMain h1 {font-size:1.65rem;}
+.home-top {margin-top:2vh;}
+.formula {font-size:21px;}
+[data-testid="stBottomBlockContainer"] {padding-left:1rem;padding-right:1rem;}
+[data-testid="stChatMessage"] {gap:8px;}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {padding:.8rem;}
+[data-testid="stTabs"] [role="tablist"] {gap:16px;}
+[data-testid="stHorizontalBlock"] {flex-wrap:wrap;}
+[data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {min-width:min(100%,210px);flex:1 1 210px;}
+p,li {font-size:14px;}
+}
+section[data-testid="stSidebar"] .stButton button[kind="secondary"] {background:transparent;border-color:transparent;padding:7px 10px;}
+section[data-testid="stSidebar"] .stButton button[kind="secondary"]:hover {background:#e3ece9;border-color:#d4e2dd;}
+section[data-testid="stSidebar"] .stButton button p {display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+[data-testid="stChatMessageAvatarUser"] {background:#dce6ed;color:#36576c;}
+[data-testid="stChatMessageContent"] p {margin-bottom:.55rem;}
+@media(max-width:760px) {[data-testid="stChatMessageContent"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {flex-basis:100%;min-width:100%;}}

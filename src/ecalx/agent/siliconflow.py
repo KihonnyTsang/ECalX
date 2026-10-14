@@ -153,13 +153,7 @@ class SiliconFlowChatCompletionsClient:
                                      tool_choice, system=self.system_prompt)
         return json.dumps(payload, ensure_ascii=False, allow_nan=False).encode('utf-8')
 
-    def __init__(self, budget=None, prices=None, *, confirmed_paid=False, api_policy=None):
-        if confirmed_paid is not True:
-            raise ProviderError('需单独明确付费授权', code='PAID_CONFIRMATION_REQUIRED')
-        from .api_policy import ProjectAPIPolicy
-        if not isinstance(api_policy, ProjectAPIPolicy):
-            raise ProviderError('需宿主注入独立策略及账本', code='EGRESS_PROFILE_REQUIRED')
-        self.api_policy = api_policy
+    def __init__(self, budget=None, prices=None):
         self.model, self.base_url = siliconflow_settings()
         self.budget = LLMBudget.model_validate(budget or {})
         self.prices = TokenPrices.model_validate(prices) if prices is not None else None

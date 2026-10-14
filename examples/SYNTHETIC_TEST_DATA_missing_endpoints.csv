@@ -1,0 +1,6 @@
+formula,temperature,temperature_unit,e_start,e_end,e_delta,e_max,e_peak,field_unit,method,sample_form,protocol,url,data_kind
+BaTi0.89Sn0.11O3,343,K,,,,20,,kV/cm,direct,bulk ceramic,,https://example.invalid/SYNTHETIC_TEST_DATA/upper-only,SYNTHETIC_TEST_DATA
+BaTi0.89Sn0.11O3,343,K,,,10,,,kV/cm,direct,bulk ceramic,,https://example.invalid/SYNTHETIC_TEST_DATA/delta-only,SYNTHETIC_TEST_DATA
+BaTi0.89Sn0.11O3,343,K,,,10,20,10,kV/cm,direct,bulk ceramic,,https://example.invalid/SYNTHETIC_TEST_DATA/peak-direct,SYNTHETIC_TEST_DATA
+BaTi0.89Sn0.11O3,343,K,,,10,20,10,kV/cm,indirect,bulk ceramic,,https://example.invalid/SYNTHETIC_TEST_DATA/peak-indirect,SYNTHETIC_TEST_DATA
+BaTi0.89Sn0.11O3,343,K,0,10,10,20,10,kV/cm,direct,bulk ceramic,OBSERVED standard pulse (unverified uploaded text),https://example.invalid/SYNTHETIC_TEST_DATA/supplied-endpoints,SYNTHETIC_TEST_DATA

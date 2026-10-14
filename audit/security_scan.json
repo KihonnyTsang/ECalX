@@ -1,26 +1,19 @@
 {
-  "status": "PASSED_HEURISTIC_SCAN",
-  "files_scanned": 70,
-  "hits": [
-    {
-      "path": "scripts/audit_release.py",
-      "line": 11,
-      "rule": "local_path",
-      "disposition": "REVIEWED_CODE_LITERAL"
-    },
-    {
-      "path": "src/ecalx/presentation/replay.py",
-      "line": 65,
-      "rule": "local_path",
-      "disposition": "REVIEWED_CODE_LITERAL"
-    }
-  ],
-  "unresolved_count": 0,
-  "hash_errors": [],
-  "whitelist_errors": [],
-  "limitations": [
-    "Regex scan is not independent human security or legal review",
-    "Does not prove absence of all secrets, unmarked copying or arbitrary scientific claims",
-    "No Git history or binary images included; no dependency binaries scanned here"
-  ]
+  "version": "0.2.0b1",
+  "status": "PASS",
+  "scanned_public_files": 109,
+  "errors": [],
+  "fake_key_exceptions": {
+    "tests/test_byo.py": [
+      "sk-BYO_FAKE_KEY_NEVER_SENT"
+    ],
+    "tests/test_http_contract.py": [
+      "sk-TEST_HTTP_ONLY_NEVER_SENT"
+    ]
+  },
+  "online_acceptance": "NOT_RUN",
+  "owner_approval": "PENDING_FINAL_CONTENT_CONFIRMATION",
+  "scope": "public source tree; generated directories excluded and checked against Git index",
+  "personal_assets_distributed": false,
+  "publication_authorized": false
 }

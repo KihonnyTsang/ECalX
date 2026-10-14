@@ -1,30 +1,25 @@
-"""Fail closed: the release tests may display saved values but cannot run science."""
-import socket
-import sqlite3
+import os
+import sys
+from pathlib import Path
+sys.dont_write_bytecode=True
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+# Keep every test in disposable BYO state. Never load the owner's environment.
 import pytest
-
+@pytest.fixture(autouse=True)
+def no_external_network(monkeypatch):
+    import socket
+    def blocked(*args, **kwargs):
+        raise AssertionError('Release tests must not open a network connection')
+    monkeypatch.setattr(socket.socket, 'connect', blocked)
+    monkeypatch.setattr(socket.socket, 'connect_ex', blocked)
 
 @pytest.fixture(autouse=True)
-def offline(monkeypatch, request, tmp_path):
-    def denied(*a, **k):
-        raise AssertionError('Release verification forbids network and database creation')
-    for name in ('connect', 'connect_ex'):
-        monkeypatch.setattr(socket.socket, name, denied)
-    monkeypatch.setattr(socket, 'create_connection', denied)
-    monkeypatch.setattr(socket, 'getaddrinfo', denied)
-    if request.node.get_closest_marker('task_store'):
-        original_connect = sqlite3.connect
-        from pathlib import Path
-        def temporary_only(database, *args, **kwargs):
-            name = str(database)
-            if name.startswith('file:'):
-                name = name[5:].split('?', 1)[0]
-            if not Path(name).resolve().is_relative_to(tmp_path.resolve()):
-                raise AssertionError('Only pytest temporary SQLite stores are allowed')
-            return original_connect(database, *args, **kwargs)
-        monkeypatch.setattr(sqlite3, 'connect', temporary_only)
-    else:
-        monkeypatch.setattr(sqlite3, 'connect', denied)
-    for key in ('SILICONFLOW_API_KEY', 'OPENAI_API_KEY', 'DEEPSEEK_API_KEY',
-                'ECALX_READONLY_ROOT', 'ECALX_TEST_ONLY_PREVIEW_ROOT'):
-        monkeypatch.delenv(key, raising=False)
+def isolation(tmp_path,monkeypatch):
+    from ecalx_local import configuration,byo_policy,engine,import_data,setup_ui
+    root=tmp_path/'workspace'
+    for mod in (configuration,byo_policy,engine,import_data,setup_ui):monkeypatch.setattr(mod,'SCIENCE_ROOT',root)
+    monkeypatch.setenv('ECALX_CONFIG_DIR',str(tmp_path/'config'))
+    monkeypatch.delenv('SILICONFLOW_API_KEY',raising=False)
+    monkeypatch.delenv('SILICONFLOW_MODEL',raising=False)
+    monkeypatch.setenv('ECALX_MODE','byo')
+    return root

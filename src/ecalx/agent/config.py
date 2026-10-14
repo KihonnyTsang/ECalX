@@ -61,7 +61,7 @@ def siliconflow_settings():
     model = os.environ.get('SILICONFLOW_MODEL', MODEL)
     base = os.environ.get('SILICONFLOW_BASE_URL', BASE_URL).rstrip('/')
     # Stage-specific allowlist: a typo or alternate host must never receive the key.
-    if model != MODEL:
+    if (os.environ.get('ECALX_MODE', 'byo') == 'personal' and model != MODEL) or (os.environ.get('ECALX_MODE', 'byo') != 'personal' and not __import__('re').fullmatch(r'deepseek-ai/DeepSeek-[A-Za-z0-9._-]+', model)):
         raise ProviderError('SILICONFLOW_MODEL不在本阶段允许的模型列表', code='INVALID_CONFIG')
     if base != BASE_URL:
         raise ProviderError('SILICONFLOW_BASE_URL必须为官方HTTPS /v1地址', code='INVALID_CONFIG')

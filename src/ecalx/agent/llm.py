@@ -73,6 +73,87 @@ class LLMClient(Protocol):
     def respond(self, messages: list[dict], tools: list[dict]) -> Reply: ...
 
 
+class OpenAIResponsesClient:
+    mode = 'LIVE_LLM'
+    provider = 'openai'
+    def __init__(self, model=None, budget=None, prices=None):
+        from .siliconflow import LLMBudget, TokenPrices
+        self.budget = LLMBudget.model_validate(budget or {})
+        self.prices = TokenPrices.model_validate(prices) if prices is not None else None
+        self.model = model or os.environ.get('ECALX_OPENAI_MODEL', '')
+        if not os.environ.get('OPENAI_API_KEY') or not self.model:
+            raise ProviderError('需要配置 OPENAI_API_KEY 和 ECALX_OPENAI_MODEL；未连接真实LLM')
+
+    def respond_budgeted(self, messages, tools, *, remaining_requests, remaining_tokens,
+                         timeout, checkpoint=None, on_attempt=None):
+        from .siliconflow import usage_stats
+        metrics = {'requests': 0, 'accounted_tokens': 0, 'attempts': []}
+        start = time.monotonic()
+        reserve = len(json.dumps([SYSTEM,messages,tools]).encode()) + 1024 + self.budget.request_tokens
+        if remaining_requests < 1 or remaining_tokens < reserve or timeout <= 0:
+            raise ProviderError('LLM请求/Token/时限预算不足',code='RESOURCE_LIMIT',metrics=metrics)
+        if checkpoint:
+            checkpoint()
+        metrics.update(requests=1,accounted_tokens=reserve,attempts=[{'reserved_tokens':reserve,'usage':{}}])
+        if on_attempt:
+            on_attempt(metrics)
+        try:
+            if checkpoint:
+                checkpoint()
+            reply = self.respond(messages,tools,_timeout=min(timeout,self.budget.request_seconds),
+                                 _max_output_tokens=self.budget.request_tokens)
+            raw = reply.usage
+            stats = usage_stats({'prompt_tokens':raw.get('input_tokens'),'completion_tokens':raw.get('output_tokens'),
+                                 'total_tokens':raw.get('total_tokens')},self.prices)
+            metrics['attempts'][0].update(status='RECEIVED',usage=stats)
+            if stats['total_tokens'] is not None:
+                metrics['accounted_tokens']=stats['total_tokens']
+            if checkpoint:
+                checkpoint()
+            if time.monotonic()-start>min(timeout,self.budget.request_seconds):
+                raise ProviderError('提供方响应超时；不执行迟到调用',code='TIMEOUT')
+            if metrics['accounted_tokens']>remaining_tokens:
+                raise ProviderError('提供方实际Token超过限额',code='TOKEN_LIMIT')
+            reply.usage,reply.metrics=stats,metrics
+            return reply
+        except ProviderError as error:
+            error.metrics=metrics
+            raise
+        finally:
+            metrics['elapsed_seconds']=time.monotonic()-start
+
+    def respond(self, messages, tools, *, _timeout=25, _max_output_tokens=2048):
+        payload = {'model':self.model, 'instructions':SYSTEM, 'input':messages,
+                   'tools':tools, 'tool_choice':'required', 'parallel_tool_calls':False,
+                   'max_output_tokens':_max_output_tokens, 'store':False, 'include':['reasoning.encrypted_content']}
+        if len(json.dumps(payload).encode()) > 200_000:
+            raise ProviderError('上下文超过资源限制')
+        request = urllib.request.Request('https://api.openai.com/v1/responses',
+            data=json.dumps(payload).encode(), headers={'Authorization':'Bearer '+os.environ['OPENAI_API_KEY'],
+                                                      'Content-Type':'application/json'})
+        # No configurable destination: credentials cannot be redirected by model/user input.
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, *args, **kwargs):
+                raise ProviderError('供应商重定向被拒绝')
+        try:
+            with urllib.request.build_opener(NoRedirect()).open(request, timeout=_timeout) as response:
+                raw = response.read(1_000_001)
+            if len(raw) > 1_000_000:
+                raise ProviderError('供应商响应超过限制')
+            body = json.loads(raw)
+            calls = []
+            for item in body.get('output', []):
+                if item.get('type') == 'function_call':
+                    calls.append({'id':item['call_id'], 'name':item['name'], 'arguments':json.loads(item['arguments'])})
+            if not calls or len(calls) > 1:
+                raise ProviderError('未取得单个结构化工具调用；不执行文本中的伪调用')
+            return Reply(calls, body.get('usage', {}), body.get('model', self.model),
+                         [item for item in body.get('output',[]) if item.get('type') in {'reasoning','function_call'}])
+        except Exception as error:
+            # Never persist HTTP bodies/headers or exception text (may reflect a key).
+            raise ProviderError('真实提供方调用失败：'+type(error).__name__) from None
+
+
 class ScriptedClient:
     """Explicit test double. Its performance is never reported as online LLM quality."""
     mode = 'SIMULATED_LLM_TEST'
@@ -139,9 +220,18 @@ class DeterministicClient:
         return call('finish_research', {'findings':[{'call_id':i,'pointer':''} for i,o in results if o['status']=='OK'][-4:], 'interpretation':interpretation})
 
 
-def configured_client(provider=None, *, confirmed_paid=False, api_policy=None, **kwargs):
-    """Explicit online construction only; no environment auto-selection or .env load."""
-    if provider != 'siliconflow' or confirmed_paid is not True:
-        raise ProviderError('需显式Provider及单独付费授权', code='PAID_CONFIRMATION_REQUIRED')
-    from .siliconflow import SiliconFlowChatCompletionsClient
-    return SiliconFlowChatCompletionsClient(confirmed_paid=True, api_policy=api_policy, **kwargs)
+def configured_client(provider=None, root=None, **kwargs):
+    from .config import load_local_env
+    if root is not None:
+        load_local_env(root)
+    provider = provider or os.environ.get('ECALX_LLM_PROVIDER', 'auto')
+    if provider not in {'auto', 'siliconflow', 'openai', 'deterministic'}:
+        raise ProviderError('ECALX_LLM_PROVIDER配置无效', code='INVALID_CONFIG')
+    if provider == 'deterministic':
+        return DeterministicClient()
+    if provider == 'siliconflow' or (provider == 'auto' and os.environ.get('SILICONFLOW_API_KEY')):
+        from .siliconflow import SiliconFlowChatCompletionsClient
+        return SiliconFlowChatCompletionsClient(**kwargs)
+    if provider == 'openai' or (os.environ.get('OPENAI_API_KEY') and os.environ.get('ECALX_OPENAI_MODEL')):
+        return OpenAIResponsesClient(budget=kwargs.get('budget'),prices=kwargs.get('prices'))
+    return DeterministicClient()

@@ -1,0 +1,6 @@
+"""Future user-model boundary; no model loading or training is enabled in MVP."""
+from typing import Protocol
+class UserPredictor(Protocol):
+    def check_applicability(self, composition: str, conditions: dict) -> dict: ...
+    def predict(self, composition: str, conditions: dict) -> dict: ...
+MODEL_LOADING_ENABLED = False
