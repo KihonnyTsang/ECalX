@@ -10,18 +10,21 @@ from test_byo import import_example
 
 
 def configured():
-    save_config({'model':'deepseek-ai/DeepSeek-V4-Flash',
-        'prices':{'input_per_million':1,'output_per_million':2},'daily_cny':5},'sk-TEST_HTTP_ONLY_NEVER_SENT')
+    save_config({'model':'deepseek-ai/DeepSeek-V4-Flash'},'sk-TEST_HTTP_ONLY_NEVER_SENT')
     load_credentials()
 
 
 def test_real_transport_real_policy_and_tools(isolation,tmp_path,monkeypatch):
     import ecalx.agent.siliconflow as transport
     import_example(isolation);configured()
+    from ecalx_local.configuration import read_config
+    # Exactly nine research requests plus two follow-up requests must fit;
+    # consuming quota must not invalidate consent during the final request.
+    save_config({'model':read_config()['model'],'usage_limits':{'daily_requests':11}})
     quote=online_quote();prepared=prepare_inputs({'natural_language':'探索候选组成'})
     task=create_research(prepared,'live',confirmed=True,consent=quote,storage=tmp_path/'tasks')
     agent=LocalAgent(tmp_path/'tasks');tid=task['id']
-    client=LiveClient(budget=BUDGET.model_dump(),prices=quote['prices']);client.bind(agent,tid)
+    client=LiveClient(budget=BUDGET.model_dump(),prices=None);client.bind(agent,tid)
     requests=[]
     class FakeResponse:
         status=200;headers={}
@@ -57,11 +60,15 @@ def test_real_transport_real_policy_and_tools(isolation,tmp_path,monkeypatch):
     class FakeOpener:
         def open(self,request,**_):return FakeResponse(request)
     monkeypatch.setattr(transport.urllib.request,'build_opener',lambda *_:FakeOpener())
-    agent.advance(tid,client);agent.confirm_plan(tid,confirmed=True)
-    task=agent.run_until_wait(tid,client)
+    from ecalx_local.worker import run
+    run(tid,agent.storage_root)
+    agent.confirm_plan(tid,confirmed=True)
+    run(tid,agent.storage_root)
+    task=agent.get(tid)
     assert task['status']=='COMPLETED',task.get('error')
     assert len(requests)==9 and task['report']['faithfulness']['passed']
-    assert usage_status()['cost']>0 and usage_status()['unknown']==0
+    assert usage_status()['cost'] is None and usage_status()['unknown']==0
+    assert usage_status()['requests']==9 and usage_status()['tokens']==9900
     # Same real follow-up transport/policy, simulated responses.
     from ecalx_local.conversation import Conversation
     from ecalx_local.conversation_live import FollowupClient,followup_quote
@@ -69,7 +76,7 @@ def test_real_transport_real_policy_and_tools(isolation,tmp_path,monkeypatch):
     monkeypatch.setattr(conversation_live,'SCIENCE_ROOT',isolation)
     conversation=Conversation(agent.storage_root);q=followup_quote()
     turn=conversation.create(tid,'总结研究证据',mode='live',consent=q)
-    follow=FollowupClient(prices=q['prices']);bodies=[]
+    follow=FollowupClient(prices=None);bodies=[]
     class FollowResponse(FakeResponse):
         def read(self,*_):
             body=json.loads(self.request.data);bodies.append(body)
@@ -82,6 +89,9 @@ def test_real_transport_real_policy_and_tools(isolation,tmp_path,monkeypatch):
     monkeypatch.setattr(transport.urllib.request,'build_opener',lambda *_:FollowOpener())
     done=conversation.run(tid,turn['id'],follow)
     assert done['status']=='COMPLETED' and len(bodies)==2,done
+    assert usage_status()['requests']==11 and usage_status()['tokens']==12100
+    assert agent.get(tid)==task
+    with pytest.raises(Exception):followup_quote()
 
 
 def test_request_gates_fail_before_http(isolation,tmp_path,monkeypatch):
@@ -90,7 +100,7 @@ def test_request_gates_fail_before_http(isolation,tmp_path,monkeypatch):
     with pytest.raises(ValueError):create_research(prepared,'live',confirmed=False,consent=quote,storage=tmp_path/'tasks')
     with pytest.raises(ValueError):create_research(prepared,'live',confirmed=True,consent=None,storage=tmp_path/'tasks')
     task=create_research(prepared,'live',confirmed=True,consent=quote,storage=tmp_path/'tasks')
-    agent=LocalAgent(tmp_path/'tasks');client=LiveClient(budget=BUDGET.model_dump(),prices=quote['prices']);client.bind(agent,task['id'])
+    agent=LocalAgent(tmp_path/'tasks');client=LiveClient(budget=BUDGET.model_dump(),prices=None);client.bind(agent,task['id'])
     def forbidden(*args,**kwargs):pytest.fail('HTTP must not execute without current consent')
     monkeypatch.setattr(transport.urllib.request,'build_opener',forbidden)
     changed=agent.get(task['id']);changed['online_consent']=None;agent.save(changed)
@@ -105,10 +115,11 @@ def test_unknown_usage_keeps_reservation_and_blocks_send(isolation,tmp_path,monk
     import ecalx.agent.siliconflow as transport
     configured();quote=online_quote()
     task=create_research(prepare_inputs({}),'live',confirmed=True,consent=quote,storage=tmp_path/'tasks')
-    agent=LocalAgent(tmp_path/'tasks');client=LiveClient(budget=BUDGET.model_dump(),prices=quote['prices']);client.bind(agent,task['id'])
+    agent=LocalAgent(tmp_path/'tasks');client=LiveClient(budget=BUDGET.model_dump(),prices=None);client.bind(agent,task['id'])
     class Broken:
         def open(self,*args,**kwargs):raise OSError('TEST_HTTP_ONLY connection lost')
     monkeypatch.setattr(transport.urllib.request,'build_opener',lambda *_:Broken())
     assert agent.advance(task['id'],client)['status']=='FAILED'
-    assert usage_status()['unknown']==1 and usage_status()['cost']>0
+    assert usage_status()['unknown']==1 and usage_status()['tokens']>0
+    assert usage_status()['cost'] is None
     with pytest.raises(Exception):online_quote()

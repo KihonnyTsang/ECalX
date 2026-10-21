@@ -1,15 +1,16 @@
-# 0.2.0b1; macOS ARM64 / Python 3.11 fresh isolated install, 2026-10-14
-# Constraints for reproduction; not a cross-platform lockfile.
+# BST standalone candidate; macOS ARM64 / Python 3.11, 2026-10-21
+# Reproduction constraints only; dependencies are not bundled.
 altair==6.3.0
 annotated-types==0.8.0
 anyio==4.15.1
 attrs==26.1.0
-certifi==2026.7.22
+certifi==2026.10.18
+cffi==2.1.1
 charset-normalizer==3.5.2
 click==8.5.0
+cryptography==50.0.2
 et_xmlfile==2.0.0
 h11==0.16.0
-httptools==0.9.0
 idna==3.20
 iniconfig==2.3.1
 itsdangerous==2.2.0
@@ -22,14 +23,18 @@ numpy==2.4.6
 openpyxl==3.1.5
 packaging==26.3
 pandas==2.3.3
+pdfminer.six==20260107
+pdfplumber==0.11.10
 pillow==12.3.0
-pluggy==1.6.0
+pluggy==1.7.0
 protobuf==7.36.2
 pyarrow==25.0.1
+pycparser==3.11
 pydantic==2.14.1
 pydantic_core==2.50.1
 pydeck==0.9.3
 Pygments==2.21.0
+pypdfium2==5.14.0
 pytest==8.4.2
 python-dateutil==2.9.0.post0
 python-multipart==0.0.32
@@ -38,9 +43,8 @@ referencing==0.37.0
 requests==2.34.2
 rpds-py==2026.9.1
 six==1.17.0
-starlette==1.7.0
-streamlit==1.65.0
-toml==0.10.2
+starlette==1.9.0
+streamlit==1.66.0
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 tzdata==2026.5

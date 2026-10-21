@@ -13,6 +13,7 @@ from .engine import online_quote
 from .inputs import goals_summary
 from .jobs import create_research, launch
 from .presentation import candidate_cards
+from .ui_home import show_quote
 
 
 def stage_draft(task, draft):
@@ -52,7 +53,7 @@ def child_editor(task, storage):
         ops = ['未指定','>','>=','<','<=','=']
         op = a.selectbox('新 ΔT 目标关系', ops, index=ops.index(values['delta_t_operator'] or '未指定'), key=prefix+'_op')
         maximize = b.checkbox('新任务偏好尽可能大的 ΔT', value=values['maximize'], key=prefix+'_maximize')
-        mode = st.radio('新任务执行方式', ['本地科研工具 · 无需联网','DeepSeek Agent · 需确认预算'], key=prefix+'_mode')
+        mode = st.radio('新任务执行方式', ['本地研究 · 无需联网','DeepSeek 在线研究 · 需确认用量'], key=prefix+'_mode')
         review = st.form_submit_button('核对新任务条件', type='primary')
     if review:
         try:
@@ -88,13 +89,12 @@ def child_editor(task, storage):
         if checked['mode']=='live':
             try:
                 q=online_quote()
-                st.write(f"最多 {q['max_requests']} 次请求、{q['max_tokens']:,} Token，保守估算 ¥{q['max_estimated_cny']:.2f}；自动重试0次。")
-                st.caption('发送范围与现有研究任务相同；经授权的请求才进入原共享API账本。有效期：'+q['rate_valid_through'])
+                show_quote(q)
                 paid = st.checkbox('我同意这个新任务的在线预算和数据发送',key=prefix+'_paid')
                 consent, ready = (q if paid else None), paid
             except Exception:
                 ready=False
-                st.warning('当前有效单价或共享额度不可用，未联网。可选择本地科研工具。')
+                st.warning('当前在线配置、用量额度不可用或存在未知用量，未联网。可选择本地科研工具。')
         if st.button('创建新的研究任务', type='primary', disabled=not(confirmed and ready),key=prefix+'_create'):
             try:
                 child=create_research(checked['prepared'],checked['mode'],confirmed=True,consent=consent,storage=storage)
@@ -114,8 +114,8 @@ def render_turn(task, turn):
     with st.chat_message('user'):
         st.write(turn['question'])
     with st.chat_message('assistant'):
-        label={'LOCAL_EVIDENCE_TOOLS':'本地证据解释 · 真实只读工具 · 未调用 LLM',
-            'LIVE_LLM':'DeepSeek Agent · 证据约束回答', 'CONDITION_CHANGE':'条件变更 · 未发起付费请求'}[turn['mode']]
+        label={'LOCAL_EVIDENCE_TOOLS':'本地资料解读',
+            'LIVE_LLM':'DeepSeek 在线解读', 'CONDITION_CHANGE':'修改研究条件'}[turn['mode']]
         st.caption(label)
         if turn['status'] in {'RUNNING','PENDING'}:
             st.info('追问执行中；不会自动重复发送。')
@@ -153,7 +153,7 @@ def conversation_panel(task, storage):
     with st.expander('追问选项 · 关注候选与回答方式'):
         selected=st.multiselect('本轮关注的候选（选填，最多两个）',list(labels),format_func=labels.get,
             max_selections=2,key='chat_candidates_'+tid)
-        mode=st.radio('追问方式',['本地证据解释 · 免费','DeepSeek Agent · 每轮确认预算'],
+        mode=st.radio('追问方式',['本地证据解释 · 免费','DeepSeek 在线解读 · 每轮确认用量'],
             key='chat_mode_'+tid,horizontal=True)
         st.caption('例如：为什么生成第一个候选？哪些目标条件仍缺少实验支持？')
     question=st.chat_input('继续问材料、候选或证据…',key='chat_input_'+tid,max_chars=2000)
@@ -176,8 +176,7 @@ def conversation_panel(task, storage):
         st.caption('本轮候选：'+('、'.join(labels[c] for c in pending['selected']) or '根据本条问题和此前指代读取'))
         try:
             q=followup_quote()
-            st.write(f"最多2次请求 / {q['max_tokens']:,} Token，保守估算不超过 ¥{q['max_estimated_cny']:.2f}；自动重试0次。")
-            st.caption(q['scope']+' 单价有效期：'+q['rate_valid_through'])
+            show_quote(q)
             consent=st.checkbox('我同意仅此轮 DeepSeek 预算与发送范围',key='chat_paid_'+tid)
             if st.button('确认预算并发送本轮追问',disabled=not consent,key='chat_send_'+tid):
                 turn=conversation.create(tid,pending['question'],mode='live',selected=pending['selected'],consent=q)
@@ -188,7 +187,7 @@ def conversation_panel(task, storage):
                     start_new_session=True,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'})
                 st.rerun()
         except Exception:
-            st.warning('当前在线单价已过期，或共享API配置/额度不可用。未发送请求；可改用本地证据解释。')
+            st.warning('当前在线配置、用量额度不可用或存在未知用量。未发送请求；可改用本地证据解释。')
         if st.button('改用本地证据解释',key='chat_local_'+tid):
             conversation.create(tid,pending['question'],selected=pending['selected'])
             st.session_state.pop('paid_followup_'+tid,None)

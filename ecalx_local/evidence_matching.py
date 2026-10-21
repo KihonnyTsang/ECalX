@@ -137,10 +137,10 @@ def discover(request, repository):
             candidates[r.record_id]['match_scope'] = scope
             continue
         evidence.append({'status':'amplitude_match_path_unconfirmed' if auxiliary else
-            'source_reported_data' if usable_reported_label(r) else 'evidence_only_incomplete_protocol',
+            'experimental_response' if getattr(r,'experimental_response',False) else 'source_reported_data' if usable_reported_label(r) else 'evidence_only_incomplete_protocol',
             'evidence':r.to_dict(), 'predictions':[], 'match_scope':scope,
             'unmet_constraints':failures, 'delta_E_kV_cm':amplitude(r),
-            'warning':'幅度匹配、路径未确认；不证明指定路径下的实测性能。' if auxiliary else
+            'warning':'独立器件温跃/体积熵变实验资料，不进入本征响应预测或性能排名。' if getattr(r,'experimental_response',False) else '幅度匹配、路径未确认；不证明指定路径下的实测性能。' if auxiliary else
                 '有效原文报告数据；路径不完整不妨碍ΔE查询与原文标签统计。原始口径、符号和方法保留，完整协议或候选性能未据此确认。'})
     # Keep physical quantities separate even when the older personal domain
     # groups solely by endpoint/method. No scientific-source module is mutated.

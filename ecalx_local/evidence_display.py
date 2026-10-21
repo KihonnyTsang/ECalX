@@ -5,20 +5,17 @@ def amplitude_metrics(summary):
     if 'delta_E_matches' not in summary:
         return
     import streamlit as st
-    columns = st.columns(3)
-    for col, label, key in zip(columns,
-        ('ΔE幅度匹配记录','完整路径已核实记录','路径未知记录'),
-        ('delta_E_matches','verified_path_records','path_unknown_records')):
-        value=summary.get(key)
-        col.metric(label,'未指定' if value is None else value)
-    st.caption(summary['amplitude_count_scope'])
-    st.caption('完整协议口径不等于检索准入：缺端点的 ΔE 原文数据仍保留标签，可用于幅度查询与分口径描述统计。')
-    with st.expander('可选常见参考解释：0↔E'):
-        st.write('零场与高场之间的变场是常见参考。这里只作 ASSUMED 协议解释，不写入真实端点、升降场分支或性能符号，也不限定本次 ΔE 模型估计。若明确要求该路径，严格路径匹配和模型拒答边界继续生效。')
-    st.caption('路径核实与路径未知按全库计数；路径核实来自独立覆盖层。幅度匹配记录可能属于其中任一类，三项不相加。')
     context=summary.get('delta_E_context_matches')
-    context='未指定' if context is None else str(context)+' 条'
-    st.write(f"符合温度/组成等条件的幅度匹配：{context}；幅度匹配、路径未确认辅助证据：{summary['amplitude_only_auxiliary_matches']} 条。")
+    columns = st.columns(2)
+    columns[0].metric('符合 ΔE 的记录', '未指定' if summary.get('delta_E_matches') is None else summary['delta_E_matches'])
+    columns[1].metric('同时符合其他条件', '未指定' if context is None else context)
+    with st.expander('帮助说明 · 匹配数量怎么算'):
+        st.write('匹配数量首先按 ΔE 统计；如果还设置了温度、组分等条件，系统会一并筛选。只有实验条件完整一致的数据，才会计入严格匹配。只有 ΔE、但缺少完整路径的数据，仍会保留并参与普通检索。')
+        st.caption('文献记录数不等于独立实验次数，也不能证明候选性能。')
+        st.write(f"已核实加电路径：{summary.get('verified_path_records', 0)} 条；加电路径未确认：{summary.get('path_unknown_records', 0)} 条。")
+        st.caption('这两项按全库统计，与 ΔE 匹配数量可能重叠，不能相加。')
+        st.write(f"符合 ΔE 等条件、但加电路径尚未确认：{summary['amplitude_only_auxiliary_matches']} 条。")
+        st.caption('0↔E 是常见的参考加电方式；仅有 ΔE 时，不会据此补填文献的起点、终点或测量分支。')
 
 
 def statistics_lines(data):

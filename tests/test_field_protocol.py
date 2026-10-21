@@ -198,7 +198,8 @@ def test_ui_import_reference_opt_in_preserves_originals(isolation):
     commit(content,p,isolation)
     before = [r.to_dict() for r in EvidenceRepository(isolation/'data/evidence.sqlite3').records()]
     at = AppTest.from_file(str(ROOT/'app.py')).run(timeout=20)
-    at.radio(key='workspace').set_value('导入数据').run()
+    next(b for b in at.button if b.label=='设置').click().run()
+    next(b for b in at.button if b.label=='数据库构建').click().run()
     ref = next(s for s in at.selectbox if s.label=='电场协议')
     ref.set_value(PULSE).run()
     assert not at.exception
@@ -209,5 +210,5 @@ def test_ui_import_reference_opt_in_preserves_originals(isolation):
     next(b for b in at.button if b.label=='检查参考协议与预测适用性').click().run()
     assert not at.exception
     assert any('ASSUMED' in m.value for m in at.markdown)
-    assert any('REJECT' in m.value for m in at.markdown)
+    assert any('暂不提供性能预测' in m.value for m in at.markdown)
     assert [r.to_dict() for r in EvidenceRepository(isolation/'data/evidence.sqlite3').records()] == before

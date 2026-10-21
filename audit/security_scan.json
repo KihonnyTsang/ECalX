@@ -1,7 +1,7 @@
 {
-  "version": "0.2.0b1",
+  "version": "0.2.0b2",
   "status": "PASS",
-  "scanned_public_files": 109,
+  "scanned_public_files": 130,
   "errors": [],
   "fake_key_exceptions": {
     "tests/test_byo.py": [

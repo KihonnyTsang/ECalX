@@ -72,5 +72,6 @@ def imported_protocol(record):
             'experimentally_verified': False, 'kind': 'unknown',
             'start_kV_cm': r.get('e_start_kV_cm'), 'end_kV_cm': r.get('e_end_kV_cm'),
             'peak_kV_cm': raw.get('actual_peak_kV_cm'),
-            'delta_kV_cm': r.get('e_delta_kV_cm'), 'upper_bound_kV_cm': r.get('e_max_kV_cm'),
+            'delta_kV_cm': r.get('e_delta_kV_cm', raw.get('normalized_fields',{}).get('e_delta_kV_cm')),
+            'upper_bound_kV_cm': r.get('e_max_kV_cm', raw.get('normalized_fields',{}).get('e_max_kV_cm')),
             'method': r.get('measurement_method'), 'protocol_text': raw.get('protocol')}

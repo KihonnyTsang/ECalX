@@ -14,7 +14,7 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFESTS = {'audit/public_files.txt', 'audit/SHA256SUMS'}
-ROOT_FILES = {'.gitignore', 'LICENSE', 'README.md', 'app.py', 'pyproject.toml', 'requirements-tested.txt'}
+ROOT_FILES = {'.gitignore', 'LICENSE', 'README.md', 'app.py', 'pyproject.toml', 'requirements-tested.txt', 'requirements-paper-mvp-tested.txt', 'MANIFEST.in'}
 PUBLIC_DIRS = {'src', 'ecalx_local', 'tests', 'examples', 'docs', 'scripts', 'audit', '.streamlit'}
 GENERATED = {'.git', '.venv', 'build', 'dist', '.pytest_cache', '__pycache__'}
 SUFFIXES = {'.py', '.md', '.toml', '.csv', '.json', '.css', '.txt'}
@@ -90,7 +90,7 @@ def main():
     files, errors = inventory()
     version = tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['version']
     package = (ROOT/'src/ecalx/__init__.py').read_text()
-    if version != '0.2.0b1' or '__version__ = "0.2.0b1"' not in package:
+    if version != '0.2.0b2' or '__version__ = "0.2.0b2"' not in package:
         errors.append('project/package version mismatch')
     report = {'version': version, 'status': 'PASS' if not errors else 'FAIL',
               'scanned_public_files': len(set(files) | MANIFESTS | {'audit/security_scan.json'}),

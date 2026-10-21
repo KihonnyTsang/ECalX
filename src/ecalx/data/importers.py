@@ -4,14 +4,14 @@ import io
 import json
 from dataclasses import fields
 
-from ecalx.data.schema import EvidenceRecord
+from ecalx.data.schema import EvidenceRecord, EXPERIMENTAL_RESPONSES
 from ecalx.data.quality import flag_possible_duplicates
 from ecalx.domain.constraints import ValidationError
 from ecalx.parsing.units import field_kV_cm, temperature_K
 
 NUMERIC = {"temperature_K", "e_start_kV_cm", "e_end_kV_cm", "delta_T_ad_K",
            "e_reported_kV_cm",
-           "delta_S_J_kgK", "Tc_K", "Cp_J_kgK", "density_kg_m3"}
+           "delta_S_J_kgK", "Tc_K", "Cp_J_kgK", "density_kg_m3", *EXPERIMENTAL_RESPONSES}
 EXTRA = {"temperature_value", "temperature_unit", "e_start_value", "e_end_value", "field_unit"}
 JSON_FIELDS = {"processing_json", "raw_metadata_json", "quality_flags"}
 CSV_COLUMNS = [f.name for f in fields(EvidenceRecord) if f.name != "import_id"]
@@ -68,6 +68,9 @@ def parse_csv(content: bytes, mapping=None):
             if not isinstance(metadata, dict):
                 raise ValidationError("raw_metadata_json 必须为对象")
             metadata["csv_original_row"] = dict(row)
+            for name, (_, expected_unit) in EXPERIMENTAL_RESPONSES.items():
+                if name in values and row.get("response_unit") and row["response_unit"] != expected_unit:
+                    raise ValidationError(name + " 单位必须为 " + expected_unit)
             record = EvidenceRecord(**values).validate()
             if record.record_id in ids:
                 raise ValidationError("文件内重复 record_id：" + record.record_id)

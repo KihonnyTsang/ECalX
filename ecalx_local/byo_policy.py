@@ -1,7 +1,6 @@
 """Injected request accounting for BYO only; original personal ledger is untouched."""
 from datetime import datetime, timezone
 import hashlib
-import json
 import sqlite3
 import time
 from uuid import uuid4
@@ -15,12 +14,13 @@ def ledger_path():
 
 def usage_status():
     path=ledger_path()
-    if not path.exists():return {'cost':0.,'unknown':0}
+    if not path.exists():return {'cost':None,'unknown':0,'requests':0,'tokens':0}
     with sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True) as db:
         day=datetime.now(timezone.utc).date().isoformat()
-        cost=db.execute('SELECT COALESCE(SUM(cost),0) FROM requests WHERE day=? OR known=0',(day,)).fetchone()[0]
+        cost=db.execute('SELECT SUM(cost) FROM requests WHERE day=? OR known=0',(day,)).fetchone()[0]
         unknown=db.execute('SELECT COUNT(*) FROM requests WHERE known=0').fetchone()[0]
-    return {'cost':cost,'unknown':unknown}
+        count,tokens=db.execute('SELECT COUNT(*),COALESCE(SUM(tokens),0) FROM requests WHERE day=?',(day,)).fetchone()
+    return {'cost':cost,'unknown':unknown,'requests':count,'tokens':tokens}
 
 class BYOPolicy(ProjectAPIPolicy):
     def __init__(self,task_id,validator,root=None):
@@ -46,22 +46,26 @@ class BYOPolicy(ProjectAPIPolicy):
             raise ProviderError('在线配置已改变',code='INVALID_CONFIG')
         self.validator(raw)
         reserve=len(raw)+1024+client.budget.request_tokens
-        rate=max(v for v in cfg['prices'].values() if v is not None)
-        cost=reserve*rate/1_000_000
         elapsed=time.monotonic()-self.started
-        left=min(timeout,client.budget.request_seconds,client.budget.seconds-elapsed)
+        left=min(timeout,client.budget.request_seconds,cfg['usage_limits']['request_seconds'],
+                 min(client.budget.seconds,cfg['usage_limits']['task_seconds'])-elapsed)
         if left<=0:raise ProviderError('任务时限已到',code='TIMEOUT')
         day=datetime.now(timezone.utc).date().isoformat();rid=uuid4().hex
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
             if db.execute('SELECT 1 FROM requests WHERE known=0').fetchone():
                 raise ProviderError('存在未知用量，未自动重发',code='UNKNOWN_USAGE')
-            daily=db.execute('SELECT COALESCE(SUM(cost),0) FROM requests WHERE day=?',(day,)).fetchone()[0]
+            daily_count,daily_tokens=db.execute('SELECT COUNT(*),COALESCE(SUM(tokens),0) FROM requests WHERE day=?',(day,)).fetchone()
             count,tokens=db.execute('SELECT COUNT(*),COALESCE(SUM(tokens),0) FROM requests WHERE task=?',(self.task_id,)).fetchone()
-            if daily+cost>cfg['daily_cny'] or count>=client.budget.llm_requests or tokens+reserve>client.budget.total_tokens:
+            limits=cfg['usage_limits']
+            if (daily_count>=limits['daily_requests'] or daily_tokens+reserve>limits['daily_tokens']
+                    or count>=min(client.budget.llm_requests,limits['task_requests'])
+                    or tokens+reserve>min(client.budget.total_tokens,limits['task_tokens'])):
                 raise ProviderError('请求前预算检查未通过',code='BUDGET_LIMIT')
-            db.execute('INSERT INTO requests VALUES(?,?,?,?,?,?,?,?,?,?)',(rid,self.task_id,day,0,reserve,cost,
-                hashlib.sha256(raw).hexdigest(),'INFLIGHT',json.dumps(cfg['prices']),client.model))
+            # Keep the existing schema and historical rows. NULL means no verified
+            # currency estimate, rather than a fictitious free request.
+            db.execute('INSERT INTO requests VALUES(?,?,?,?,?,?,?,?,?,?)',(rid,self.task_id,day,0,reserve,None,
+                hashlib.sha256(raw).hexdigest(),'INFLIGHT','null',client.model))
         return rid,left
 
     def finish(self,rid,attempt):
@@ -73,12 +77,10 @@ class BYOPolicy(ProjectAPIPolicy):
             row=db.execute('SELECT * FROM requests WHERE id=? AND task=?',(rid,self.task_id)).fetchone()
             if not row or row['status']!='INFLIGHT':
                 raise ProviderError('请求收据不匹配',code='LEDGER_MISMATCH')
-            prices=json.loads(row['prices'])
-            rate=max(v for v in prices.values() if v is not None)
             tokens=usage['total_tokens'] if known else row['tokens']
             if known and tokens>row['tokens']:known=False;tokens=max(tokens,row['tokens'])
-            db.execute('UPDATE requests SET known=?,tokens=?,cost=?,status=? WHERE id=?',
-                (int(known),tokens,tokens*rate/1_000_000,'FAILED' if attempt.get('error_code') or not known else 'RECEIVED',rid))
+            db.execute('UPDATE requests SET known=?,tokens=?,status=? WHERE id=?',
+                (int(known),tokens,'FAILED' if attempt.get('error_code') or not known else 'RECEIVED',rid))
 
     def halt(self,reason,attempts=()):
         # Failed tasks remain immutable in the existing ResearchAgent. Unknown

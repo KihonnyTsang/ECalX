@@ -1,19 +1,20 @@
 """Research surface: original execution controls and receipt-backed result views."""
 import json
+from .titles import research_title
 from . import PERSONAL
 import streamlit as st
 from .jobs import launch, worker_status
 from .presentation import (TOOL_LABELS, STATUSES, candidate_cards, evidence_rows,
                            report_markdown, doi_link, protocol_section)
-from .conditions import receipt_conditions, summary_lines, coverage_text, ZERO_NOTICE, evidence_notice
+from .conditions import receipt_conditions, summary_lines, coverage_text, ZERO_NOTICE
 from .inputs import goals_summary
 from .field_protocol import protocol_lines, imported_protocol
 from .exploratory_ui import estimator
-from .ui import section_header, task_status, formula_title, badge, science_note
+from .ui import section_header, task_status, formula_title, badge, science_note, protocol_summary, evidence_message
 
 
 def downloads(task, agent):
-    st.write('研究需求、冻结条件、候选依据和文献来源汇总为中文报告。')
+    st.write('下载本次研究的条件、候选依据和文献来源。')
     a,b=st.columns(2)
     a.download_button('下载研究报告 · Markdown',report_markdown(task),task['id']+'.md','text/markdown',
                       use_container_width=True,key='report_'+task['id'])
@@ -25,33 +26,32 @@ def downloads(task, agent):
 
 
 def candidates(task, cards):
-    st.caption('按原研究队列展示，不按性能或探索估计排序。点击详情查看证据和可选估计。')
+    st.caption('候选按生成顺序展示，展开详情可查看依据。')
     for i,card in enumerate(cards):
         if i%2==0:
             columns=st.columns(2,gap='medium')
         with columns[i%2].container(border=True):
             st.markdown('<div class="card-meta">'+badge(f"候选 {i+1:02d}")
-                +badge('待验证 · generated_unverified')
+                +badge('待实验验证')
                 +badge('化学校验通过' if card['chemical_check'] else '化学校验待执行',
                        'teal' if card['chemical_check'] else 'neutral')+'</div>',unsafe_allow_html=True)
             formula_title(card['formula'])
-            st.markdown('<div class="card-performance"><span>正式 ΔT <strong>unknown</strong></span>'
-                '<span>正式 ΔS <strong>unknown</strong></span></div>',unsafe_allow_html=True)
-            st.write(card['reason'])
-            if card['condition_warning']:
-                st.caption('目标条件证据：无匹配实验依据。' if card['condition_warning']==ZERO_NOTICE
-                           else card['condition_warning'])
-            st.caption('科学限制：'+card['gaps'])
+            seed=card['seed_formula']
+            st.write(f'参考 {seed} 的组成生成，性能仍需验证。')
             for r in card['sources'][:1]:
-                st.markdown('[种子来源 · '+(r.get('doi') or r.get('url') or '无来源')+']('+(doi_link(r['doi']) if r.get('doi') else r.get('url') or '')+')')
-            with st.expander('目标条件证据与组成详情'):
+                st.markdown('[参考来源 · '+(r.get('doi') or r.get('url') or '无来源')+']('+(doi_link(r['doi']) if r.get('doi') else r.get('url') or '')+')')
+            with st.expander('候选依据与验证详情'):
+                st.write(card['reason'])
+                if card['condition_warning']:
+                    st.caption(card['condition_warning'])
+                st.caption('仍需验证：'+card['gaps'])
                 st.write(coverage_text(card['seed_coverage']))
                 st.caption('覆盖仅属于文献种子；未指定项不作条件。种子命中不等于候选达标，单点不保证整个温区。')
                 st.write('独立化学校验：'+('通过；仅代表规则检查，不代表可合成或性能验证。' if card['chemical_check'] else '等待执行。'))
                 for r in card['sources'][1:]:
-                    st.markdown('[种子来源 · '+(r.get('doi') or r.get('url') or '无来源')+']('+(doi_link(r['doi']) if r.get('doi') else r.get('url') or '')+')')
+                    st.markdown('[参考来源 · '+(r.get('doi') or r.get('url') or '无来源')+']('+(doi_link(r['doi']) if r.get('doi') else r.get('url') or '')+')')
             if PERSONAL:
-              with st.expander('探索性 ΔT 估计 · 可选 / RESEARCH_ONLY'):
+              with st.expander('探索性 ΔT 估计（可选）'):
                   from ecalx.agent.contracts import Goals
                   estimator('dt_'+task['id']+'_'+card['id'],formula=card['formula'],
                             request=Goals(**task['frozen_goals']).request(),parent_task_id=task['id'],
@@ -63,28 +63,31 @@ def candidates(task, cards):
 def evidence_panel(task, rows):
     summary=receipt_conditions(task)
     st.subheader('目标条件的证据覆盖')
-    for line in protocol_lines(task.get('input_snapshot',{}).get('field_protocol')):
-        st.write(line)
+    st.caption(protocol_summary(task.get('input_snapshot',{}).get('field_protocol')))
     if summary:
         a,b,c=st.columns(3)
         a.metric('符合温度条件','未指定' if summary['temperature_matches'] is None else summary['temperature_matches'])
         b.metric('符合电场条件','未指定' if summary['field_matches'] is None else summary['field_matches'])
         c.metric('温度 / 电场联合匹配','未指定' if summary['joint_matches'] is None else summary['joint_matches'])
-        st.caption(f"全库 {summary['library_records']:,} 条；全部已指定条件匹配 {summary['all_goal_matches']} 条；完整协议 {summary['complete_protocol_matches']} 条，协议不完整 {summary['incomplete_protocol_matches']} 条。")
+        st.caption(f"文献库共 {summary['library_records']:,} 条，符合全部筛选条件 {summary['all_goal_matches']} 条。")
         from .evidence_display import amplitude_metrics
         amplitude_metrics(summary)
         if summary['all_goal_matches']==0:
             if summary.get('amplitude_only_auxiliary_matches',0) or summary.get('verified_path_matches',0):
-                st.warning(evidence_notice(summary))
+                st.warning(evidence_message(summary))
             else:
-                st.error(ZERO_NOTICE)
-        with st.expander('计数口径与协议缺口'):
+                st.warning(evidence_message(summary))
+        with st.expander('高级详情 · 匹配统计与实验条件'):
+            for line in protocol_lines(task.get('input_snapshot',{}).get('field_protocol')):
+                st.write(line)
+            st.caption(f"完整实验条件 {summary['complete_protocol_matches']} 条，条件不完整 {summary['incomplete_protocol_matches']} 条。")
             for line in summary_lines(summary)[3:]:
                 if line!=ZERO_NOTICE:
                     st.write(line)
     else:
-        st.caption('检索尚未执行，或历史未保存计数快照。未用当前库回填历史结果。')
-    st.caption('温度和电场筛选文献、影响种子优先级；生成器另读全库，未计算候选在目标条件下的物性。')
+        st.caption('本次研究暂无匹配统计。')
+    with st.expander('帮助说明 · 研究条件如何影响候选'):
+        st.write('温度和电场条件用于筛选文献，并影响参考材料的优先顺序。候选生成仍会参考整个文献库，尚未预测候选在目标条件下的性能。')
     if rows:
         with st.expander('文献证据与实测条件（不同协议分别解释）', expanded=False):
             for r in rows[:8]:
@@ -94,6 +97,10 @@ def evidence_panel(task, rows):
                 temp = '未知' if r['temperature_K'] is None else f"{r['temperature_K']:g} K"
                 dt = '未知' if r['delta_T_ad_K'] is None else f"{r['delta_T_ad_K']:g} K"
                 st.write(f"原文报告/换算 ΔT：{dt}；T：{temp}；方法：{r['measurement_method']}；形态：{r['sample_form']}。")
+                if r.get('delta_T_jump_abs_K') is not None or r.get('delta_S_vol_abs_kJ_K_m3') is not None:
+                    from .manual_ui import record_preview
+                    st.dataframe([record_preview(r)],hide_index=True)
+                    st.caption('独立实验响应；未换算为本征 ΔTad 或质量 ΔS，不作为候选性能排名依据。')
                 estart = '未知' if r['e_start_kV_cm'] is None else f"{r['e_start_kV_cm']:g}"
                 eend = '未知' if r['e_end_kV_cm'] is None else f"{r['e_end_kV_cm']:g}"
                 ereported = '未知' if r['e_reported_kV_cm'] is None else f"{r['e_reported_kV_cm']:g}"
@@ -139,7 +146,7 @@ def execution(task, agent, storage):
     if task['status'] not in {'COMPLETED','FAILED','CANCELLED'}:
         st.subheader('研究计划待确认' if task['status']=='DRAFT' and task['plan'] else STATUSES[task['status']])
         st.progress(min(.9,done/max(planned+1,1)),text=labels[-1] if labels else ('等待科研工具返回结果' if task['status']=='RUNNING' else '正在准备计划和工具'))
-        st.caption(f'已完成 {len(labels)} 次工具调用 · 页面自动更新')
+        st.caption(f'已完成 {len(labels)} 个步骤 · 自动更新')
     if task['plan']:
         with st.expander('研究计划',expanded=task['status']=='DRAFT'):
             for step in task['plan']['steps']:
@@ -147,7 +154,7 @@ def execution(task, agent, storage):
     if task['status']=='DRAFT' and task['plan']:
         st.info('计划已生成。确认后开始执行科研工具。')
         if task['client_mode']=='LIVE_LLM':
-            st.caption('原共享 API 任务时限包含计划后的等待时间；若已过期请新建任务。')
+            st.caption('在线研究的时限包含等待确认的时间，过期后请新建研究。')
         if st.button('确认计划并执行',type='primary'):
             agent.confirm_plan(tid,confirmed=True,accept_unquantified=True)
             launch(tid,storage)
@@ -174,9 +181,9 @@ def execution(task, agent, storage):
     if work['state'] in {'idle','stopped','interrupted'} and task['status']=='RUNNING' and c.button('继续未结束的任务',use_container_width=True):
         launch(tid,storage)
     if work['state']=='interrupted':
-        st.warning('任务进程中断；阶段结果已保留。在途在线请求按原策略核对未知用量，不自动重试。')
+        st.warning('研究意外中断，已有结果已保存。在线请求用量待核对，不会自动重试。')
     if task['status'] in {'RUNNING','DRAFT','PAUSED','CANCELLED'}:
-        st.caption('暂停/停止在在途请求或原子工具结束后生效；已发生的在线费用不能撤销。')
+        st.caption('暂停或停止将在当前步骤结束后生效；已产生的在线费用无法撤销。')
     if task['status']=='FAILED':
         st.error('执行未完成，阶段结果已保留。可查看报告或高级详情了解原因；不会自动重试。')
 
@@ -187,8 +194,8 @@ def research(agent, storage, open_history):
     section_header('研究工作区', '材料研究')
     task_status(initial)
     with st.chat_message('user'):
-        st.write(initial['original'] or '开放探索 · 未指定研究条件')
-    with st.expander('已冻结的研究条件'):
+        st.write(research_title(initial))
+    with st.expander('已确认的研究条件'):
         for line in goals_summary(initial['frozen_goals']):
             st.write(line)
         for pref in initial.get('optional_preferences',[]):
@@ -204,21 +211,21 @@ def research(agent, storage, open_history):
         if task['status'] != initial['status']:
             st.rerun()
         with st.chat_message('assistant'):
-            st.caption('ECalX · '+('真实 DeepSeek 研究' if task['client_mode']=='LIVE_LLM' else '本地科研工具 · 确定性流程，未调用 LLM'))
+            st.caption('ECalX · '+('DeepSeek 在线研究' if task['client_mode']=='LIVE_LLM' else '本地研究'))
             execution(task,agent,storage)
             cards,rows=candidate_cards(task),evidence_rows(task)
             if task['status']=='COMPLETED':
-                st.markdown(f'已整理 **{len(cards)} 个待验证组成**和 **{len(rows)} 条文献记录**。可以展开候选依据，或继续追问这次研究。')
+                st.markdown(f'已整理 **{len(cards)} 个候选材料**和 **{len(rows)} 条文献记录**。可以展开候选依据，或继续追问这次研究。')
             if cards or rows or task['status'] in terminal:
                 science_note()
                 summary=receipt_conditions(task)
                 if summary is not None and summary['all_goal_matches']==0:
                     if summary.get('amplitude_only_auxiliary_matches',0) or summary.get('verified_path_matches',0):
-                        st.warning(evidence_notice(summary))
+                        st.warning(evidence_message(summary))
                     else:
-                        st.error(ZERO_NOTICE)
+                        st.warning(evidence_message(summary))
                 a,b,c=st.columns(3)
-                a.metric('待验证组成',len(cards));b.metric('文献记录',len(rows));c.metric('正式 ΔT / ΔS','unknown')
+                a.metric('候选材料',len(cards));b.metric('文献记录',len(rows));c.metric('性能验证','待实验验证')
                 tab1,tab2,tab3=st.tabs(['候选材料','文献与条件','研究报告'])
                 with tab1:
                     candidates(task,cards)

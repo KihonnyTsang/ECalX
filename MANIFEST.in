@@ -1,0 +1,16 @@
+# User manuscripts and local extraction state are never release assets.
+global-exclude *.pdf *.PDF *.png *.jpg *.jpeg *.sqlite3 *.sqlite3-wal *.sqlite3-shm
+global-exclude dai_direct_deltaT_T.csv
+prune raw
+prune paper_drafts
+prune var
+prune my-local-workspace
+prune my-private-config
+prune acceptance
+prune research
+prune review-only
+include scripts/prepare_bst_reference.py
+include docs/bst_interpolation_20261021.md
+include docs/bst_data_license.md
+include ecalx_local/templates/BST_reference_template.csv
+include docs/bst_csv_format.md

@@ -17,3 +17,6 @@ my-private-config/
 *.xls
 *.pdf
 *.zip
+# Local manuscript originals and unresolved extraction drafts
+raw/
+paper_drafts/

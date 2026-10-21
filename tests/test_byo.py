@@ -125,3 +125,34 @@ def test_key_permissions_and_redaction(isolation,tmp_path,monkeypatch):
     (config_dir()/'.env').chmod(0o644)
     monkeypatch.delenv('SILICONFLOW_API_KEY')
     with pytest.raises(Exception):load_credentials()
+
+
+@pytest.mark.parametrize('value',[{}, {'model':''}, {'model':'   '}])
+def test_first_configuration_requires_explicit_model(isolation,value):
+    from ecalx_local.configuration import save_config,config_dir
+    with pytest.raises(ValueError,match='首次配置请填写模型 ID'):
+        save_config(value,'sk-BYO_FAKE_KEY_NEVER_SENT')
+    assert not (config_dir()/'settings.json').exists()
+    assert not (config_dir()/'.env').exists()
+
+
+def test_blank_model_updates_preserve_credentials_and_validate_new_model(isolation):
+    from ecalx_local.configuration import save_config,read_config,config_dir
+    model='deepseek-ai/DeepSeek-V4-Flash'
+    save_config({'model':model},'sk-BYO_FAKE_KEY_NEVER_SENT')
+    key_file=config_dir()/'.env'
+    secret_bytes=key_file.read_bytes()
+    save_config({'model':'   ','usage_limits':{'daily_requests':9}})
+    assert read_config()['model']==model
+    assert read_config()['usage_limits']['daily_requests']==9
+    save_config({'usage_limits':{'daily_requests':8}})
+    assert read_config()['model']==model
+    before=(config_dir()/'settings.json').read_bytes()
+    with pytest.raises(ValueError,match='模型 ID'):
+        save_config({'model':'invalid-model'},'sk-BYO_FAKE_KEY_NEVER_SENT')
+    assert (config_dir()/'settings.json').read_bytes()==before
+    assert key_file.read_bytes()==secret_bytes
+    save_config({'model':'deepseek-ai/DeepSeek-V3'})
+    assert read_config()['model']=='deepseek-ai/DeepSeek-V3'
+    assert read_config()['usage_limits']['daily_requests']==8
+    assert key_file.read_bytes()==secret_bytes

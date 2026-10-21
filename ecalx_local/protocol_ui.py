@@ -2,14 +2,15 @@
 import streamlit as st
 from .field_protocol import CHOICES, UNKNOWN, PULSE, CUSTOM, reference_protocol, protocol_lines
 from ecalx.parsing.units import field_kV_cm
+from .ui import protocol_label, protocol_summary
 
 
 def reference_controls(prefix):
-    choice = st.selectbox('电场协议', CHOICES, key=prefix+'_protocol')
+    choice = st.selectbox('电场协议', CHOICES, format_func=protocol_label, key=prefix+'_protocol')
     enabled = True
     peak = start = end = delta = None
     if choice == PULSE:
-        enabled = st.checkbox('假设采用标准脉冲协议（仅探索，ASSUMED）', key=prefix+'_assume')
+        enabled = st.checkbox('假设采用标准脉冲协议（仅供探索）', key=prefix+'_assume')
         peak = st.text_input('参考峰值电场 / kV/cm', placeholder='手动填写；上限与 ΔE 不会代填', key=prefix+'_peak')
     elif choice == CUSTOM:
         a,b,c = st.columns(3)
@@ -17,8 +18,8 @@ def reference_controls(prefix):
         end = b.text_input('参考终点 / kV/cm', key=prefix+'_end')
         delta = c.text_input('参考 ΔE / kV/cm', key=prefix+'_delta')
     if choice != UNKNOWN and enabled:
-        st.caption('用户假设协议 · ASSUMED；不更新真实端点、测量方法或文献验证状态。')
-    st.caption('已核实实验协议 · OBSERVED 只在独立核验的证据区显示。上传协议文字不等于核实；未知项保持 UNKNOWN。')
+        st.caption('此加电方式仅作研究参考，仍需核对文献实际条件。')
+    st.caption('填写的加电方式不会自动视为已核实的实验条件。')
     return {'choice': choice if enabled else UNKNOWN, 'peak': peak if enabled else None,
             'start': start, 'end': end, 'delta': delta}
 
@@ -29,5 +30,7 @@ def build_reference(values):
 
 
 def show_protocol(protocol):
-    for line in protocol_lines(protocol):
-        st.write(line)
+    st.caption(protocol_summary(protocol))
+    with st.expander('高级详情 · 加电条件说明'):
+        for line in protocol_lines(protocol):
+            st.write(line)

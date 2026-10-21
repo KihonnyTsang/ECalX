@@ -20,12 +20,17 @@ BUDGET = LLMBudget(llm_requests=2, tool_calls=2, request_tokens=1024,
     total_tokens=65536, request_seconds=60, seconds=150, transport_retries=0)
 
 
-def followup_quote():
-    base = online_quote()  # same verified rates, shared halt and read-only accounting
-    return {**base, 'expected_requests':'最多2次：选择证据、引用证据回答',
+def followup_quote(*, check_usage=True):
+    if not PERSONAL:
+        from .configuration import quote
+        base = quote(followup=True, check_usage=check_usage)
+    else:
+        base = online_quote()
+        base = {**base, 'expected_requests':'最多2次：选择证据、引用证据回答',
         'max_requests':2, 'max_tokens':BUDGET.total_tokens,
         'max_estimated_cny':round(BUDGET.total_tokens*max(v for v in base['prices'].values() if v is not None)/1_000_000, 6),
-        'request_seconds':BUDGET.request_seconds, 'task_seconds':BUDGET.seconds,
+        'request_seconds':BUDGET.request_seconds, 'task_seconds':BUDGET.seconds}
+    return {**base,
         'scope':'当前追问、冻结条件、候选生成与校验摘要、最小来源事实及关联估计摘要、最近6轮问题与候选指代；不发送原始文件、密钥或模型文件。',
         'purpose':'READONLY_FOLLOWUP_TWO_REQUESTS_V1'}
 
@@ -41,6 +46,15 @@ def definition(name, ids):
 
 
 class FollowupClient(LiveClient):
+    def __init__(self, budget=None, prices=None):
+        if budget is None:
+            if PERSONAL:
+                budget = BUDGET.model_dump()
+            else:
+                from .configuration import configured_budget
+                budget = configured_budget(followup=True).model_dump()
+        super().__init__(budget=budget, prices=prices)
+
     max_body_bytes = 30000
     system_prompt = (
         'You are the existing ECalX DeepSeek Research Agent answering a follow-up. '
@@ -62,7 +76,7 @@ class FollowupClient(LiveClient):
     def validate_egress(self, raw):
         current = self.conversation.get(self.turn['parent_task_id'], self.turn['id'])
         if (current['mode']!='LIVE_LLM' or current['status']!='RUNNING'
-                or current['consent'] != followup_quote()
+                or current['consent'] != followup_quote(check_usage=False)
                 or fingerprint(read_task(current['parent_task_id'], self.conversation.storage))!=current['parent_sha256']
                 or raw != self.expected_body):
             raise ProviderError('追问需要本轮确认且只能发送当前证据上下文', code='EGRESS_REJECTED')
@@ -70,7 +84,7 @@ class FollowupClient(LiveClient):
 
 
 def run_live(conversation, task, turn, blocks, client=None):
-    if turn['consent'] != followup_quote():
+    if turn['consent'] != followup_quote(check_usage=False):
         raise ValueError('追问预算已过期或发生变化，未发起请求')
     # The original, existing source license/fingerprint verifier is reused.
     policy = ProjectedPolicy(SCIENCE_ROOT, ReadOnlyEvidence(SCIENCE_ROOT/'data/processed/evidence.sqlite3' if PERSONAL else task['evidence_snapshot']))
@@ -78,13 +92,21 @@ def run_live(conversation, task, turn, blocks, client=None):
         if call['output']['status']=='OK' and call['name'] in {
                 'search_material_evidence','generate_material_candidates','validate_chemical_constraints'}:
             policy.project(call['name'], call['output']['data'])
+    if PERSONAL:
+        budget = BUDGET
+    else:
+        from .configuration import configured_budget
+        budget = configured_budget(followup=True)
     if client is None:
         if PERSONAL:
             load_local_env(SCIENCE_ROOT)
         else:
             from .configuration import load_credentials
             load_credentials()
-        client = FollowupClient(budget=BUDGET.model_dump(), prices=turn['consent']['prices'])
+        client = FollowupClient(budget=budget.model_dump(), prices=turn['consent'].get('prices') if PERSONAL else None)
+    client.budget = budget
+    if not PERSONAL:
+        client.prices = None
     client.bind_turn(conversation, turn)
     earlier = [h for h in conversation.history(task['id'])
                if h['created_at']<turn['created_at'] and h['status']=='COMPLETED'][-6:]
@@ -99,6 +121,8 @@ def run_live(conversation, task, turn, blocks, client=None):
     seen, total, started = [], 0, time.monotonic()
     provider_ids = set()
     for index, name in enumerate(('read_saved_research_evidence','answer_from_evidence')):
+        if index >= min(budget.llm_requests, budget.tool_calls):
+            raise ProviderError('追问请求或工具调用上限已达到', code='BUDGET_LIMIT')
         offered = list(blocks) if index==0 else seen
         tools = [definition(name, offered)]
         client.expected_body = client.request_body(messages, tools)
@@ -107,9 +131,9 @@ def run_live(conversation, task, turn, blocks, client=None):
             turn['inflight_provider'] = metrics
             conversation.save(turn)
         try:
-            reply = client.respond_budgeted(messages, tools, remaining_requests=2-index,
-                remaining_tokens=BUDGET.total_tokens-total,
-                timeout=min(BUDGET.request_seconds, BUDGET.seconds-(time.monotonic()-started)),
+            reply = client.respond_budgeted(messages, tools, remaining_requests=budget.llm_requests-index,
+                remaining_tokens=budget.total_tokens-total,
+                timeout=min(budget.request_seconds, budget.seconds-(time.monotonic()-started)),
                 on_attempt=persist)
         except ProviderError as error:
             turn['provider_metrics'].append(error.metrics)

@@ -76,3 +76,30 @@ section[data-testid="stSidebar"] .stButton button p {display:-webkit-box;-webkit
 [data-testid="stChatMessageAvatarUser"] {background:#dce6ed;color:#36576c;}
 [data-testid="stChatMessageContent"] p {margin-bottom:.55rem;}
 @media(max-width:760px) {[data-testid="stChatMessageContent"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {flex-basis:100%;min-width:100%;}}
+
+/* Footer flows below long history and rests at the bottom on tall screens. */
+section[data-testid="stSidebar"] .stSidebarBlockContainer {min-height:calc(100dvh - 3rem);display:flex;flex-direction:column;}
+section[data-testid="stSidebar"] .stSidebarBlockContainer > [data-testid="stVerticalBlock"] {flex:1;}
+section[data-testid="stSidebar"] .st-key-settings_footer {margin-top:auto;padding-bottom:env(safe-area-inset-bottom, 0px);}
+@media(max-width:760px) {
+section[data-testid="stSidebar"] .stSidebarBlockContainer {min-height:calc(100dvh - 4rem);}
+}
+
+/* Current Streamlit wraps each keyed container in a layout wrapper. */
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {display:flex;flex-direction:column;min-height:calc(100dvh - 5rem);padding-bottom:1rem;}
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] > div {display:flex;flex-direction:column;flex:1;}
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] > div > [data-testid="stVerticalBlock"] {flex:1;}
+section[data-testid="stSidebar"] [data-testid="stLayoutWrapper"]:has(> .st-key-settings_footer) {margin-top:auto;flex-shrink:0;}
+
+/* Settings switch: two full-size controls, with a persistent selected state. */
+.st-key-settings_switch {padding:6px;background:#edf2f1;border:1px solid #d3dfdc;border-radius:14px;margin-top:2rem;margin-bottom:1.2rem;}
+.st-key-settings_switch button {min-height:54px;border-radius:10px;background:#fff;border:1px solid #c6d7d3;}
+.st-key-settings_switch button p {font-size:17px;font-weight:650;line-height:1.4;}
+.st-key-settings_switch button[kind="primary"] {background:var(--teal);border-color:var(--teal);color:white;box-shadow:0 2px 6px #19324815;}
+.st-key-settings_switch button[kind="secondary"]:hover {background:#e1efeb;border-color:var(--teal);}
+@media(max-width:760px) {
+.st-key-settings_switch [data-testid="stHorizontalBlock"] {flex-wrap:nowrap;gap:8px;}
+.st-key-settings_switch [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {min-width:0;flex:1 1 0;}
+.st-key-settings_switch button {min-height:52px;padding:10px 6px;}
+.st-key-settings_switch button p {font-size:16px;}
+}

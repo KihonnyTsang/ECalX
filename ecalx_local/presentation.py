@@ -1,5 +1,6 @@
 """User reports from actual receipts only, never provider narrative."""
 import json
+from .titles import research_title
 from . import PERSONAL
 from urllib.parse import quote
 from .inputs import goals_summary
@@ -8,7 +9,7 @@ from ecalx.agent.faithfulness import source_ledger
 from .conditions import receipt_conditions, summary_lines, coverage_text, ZERO_NOTICE, evidence_notice
 
 TOOL_LABELS = {'search_material_evidence':'检索本地文献证据', 'generate_material_candidates':'探索候选组成',
-    'validate_chemical_constraints':'验证候选组成', 'check_model_applicability':'检查冻结虚拟环境定义域',
+    'validate_chemical_constraints':'验证候选组成', 'check_model_applicability':'检查模拟条件',
     'create_virtual_experiment':'创建虚拟实验', 'compare_optimization_strategies':'比较虚拟优化策略',
     'select_next_candidate':'选择下一虚拟查询', 'query_virtual_experiment':'运行虚拟查询',
     'generate_research_report':'整理研究报告', 'finish_research':'核验报告来源'}
@@ -36,6 +37,7 @@ def candidate_cards(task):
             seen.add(c['candidate_id'])
             sources = [r for s in c.get('generation_sources', []) for r in s.get('seed_sources', [])]
             cards.append({'id':c['candidate_id'], 'formula':c['formula_normalized'],
+                'seed_formula':c.get('generation_sources', [{}])[0].get('seed_formula', c['seed_id']),
                 'status':'generated_unverified', 'prediction':None, 'prediction_unit':'K', 'model_version':None,
                 'reason': ('由真实文献种子 ' if PERSONAL else '由用户提供的来源种子（未独立核验；SYNTHETIC_TEST_DATA仅软件测试） ') + c.get('generation_sources', [{}])[0].get('seed_formula', c['seed_id']) + ' 的组成邻域生成；尚不能判断性能是否改善。',
                 'chemical_check': any(c.get(k) in checks for k in ('formula','formula_raw','formula_normalized','formula_empirical')),
@@ -75,7 +77,7 @@ def report_markdown(task):
     cards, rows = candidate_cards(task), evidence_rows(task)
     lines = ['# ECalX 材料研究报告', '', STATUSES[task['status']], '',
         '执行方式：' + ('DeepSeek 在线 Agent' if task['client_mode']=='LIVE_LLM' else '本地确定性科研工具流程（未调用 LLM）'),
-        '', '## 研究需求', '', task['original'] or '开放探索（未填写自然语言需求）', '',
+        '', '## 研究需求', '', research_title(task), '',
         *goals_summary(task['frozen_goals']), *protocol_lines(task.get('input_snapshot',{}).get('field_protocol')), '', '## 研究结果', '',
         f'本次展示 {len(cards)} 个未验证组成候选、{len(rows)} 条本地文献记录。候选顺序为研究队列，不是性能排名。',
         '', '定量性能预测：unknown / 无可靠预测。模型版本：无获准模型。', '',
@@ -106,6 +108,11 @@ def report_markdown(task):
             f"  ΔT 口径：{r.get('delta_t_basis')}；符号：{r.get('delta_t_sign_convention')}；形态：{r.get('sample_form')}。",
             f"  来源：[{r.get('doi') or r.get('url') or '无来源'}]({doi_link(r['doi']) if r.get('doi') else r.get('url') or ''})；{r['original_row']}；数据版本：{r['data_version']}。",
             '  限制：' + '、'.join(r.get('quality_flags', []))]
+        for key, label, unit in [('delta_T_jump_abs_K','器件温跃幅值 |ΔTj|','K'),
+                                 ('delta_S_vol_abs_kJ_K_m3','体积熵变幅值 |ΔS|','kJ/(K·m³)')]:
+            if r.get(key) is not None:
+                lines += [f"  {label}：{value(key,unit)}；器件：{r.get('specimen_id')}；派生方式：{r.get('value_derivation')}；归一化：{r.get('normalization_basis')}。",
+                          f"  原Excel出处：{r.get('source_workbook')} / {r.get('source_sheet')} / {r.get('temperature_cell')}, {r.get('response_cell')}。仅作实验资料，不参与性能排名。"]
     calls = [c for c in task['calls'] if c['name']=='search_material_evidence' and c['output']['status']=='OK']
     if calls:
         from .evidence_display import statistics_lines

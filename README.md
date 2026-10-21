@@ -1,104 +1,70 @@
-# ECalX · Bring Your Own API & Data
+# ECalX · BYO API & Data
 
-本地材料研究工作台，Python / UI 版本 **`0.2.0b1`**，拟用 Git 标签 **`v0.2.0-beta.1`**。
-这是待所有者确认公开内容的预发布候选；本地准备不表示已经推送或发布。
+**v0.2.0-beta.2 发布候选**（Python版本号 `0.2.0b2`）。这是基于现有Git历史准备的本地候选，尚未推送或创建Release。无需作者电脑上的工程、模型或私人数据库。
 
-第三方可独立安装、导入自己的 CSV/Excel，运行真实本地科研工具，并配置自己的 SiliconFlow API Key。默认 BYO 模式不寻找或依赖作者的原科研目录、私人数据库、模型或账本。
+ECalX是本地材料研究工作台。“BYO”是Bring Your Own，即使用你自己的API和数据：
 
-| 能力 / 内容 | 当前状态 |
-| --- | --- |
-| CSV / `.xlsx` 导入、证据检索、组成候选生成、独立化学校验、报告与连续追问 | 已验证：真实本地 Python 工具执行，合成数据用于软件验收 |
-| BYO DeepSeek Function Calling 在线研究 / 在线追问 | 客户端和模拟 HTTP 契约已测试；**真实在线任务尚未独立验收** |
-| TEST_ONLY / SYNTHETIC_TEST_DATA 示例 | 原创合成软件测试数据，**不是论文、测量或科研证据** |
-| 新候选 ΔT / ΔS 正式预测、M5 正式推荐 | **无可靠正式预测，数值为 unknown；M5 禁用** |
+| 用途 | 需要准备什么 | 能做什么 |
+| --- | --- | --- |
+| BYO API · 自备API | 可选：你自己的SiliconFlow Key和可用DeepSeek模型 | 在线研究与追问；不填Key也可使用本地功能 |
+| BYO Data · 自备材料数据 | 你自己的CSV、Excel，或本地可搜索PDF | 导入资料、检索证据、探索组成候选、查看报告 |
+| BST研究性插值 | 合法取得且哈希匹配的204点脱敏参考CSV | 在已有BST曲线覆盖内估计ΔT；不能替代实验验证 |
 
-## 独立下载与安装
+## 安装与启动
 
-需要 Python 3.11+；本次实际验证 macOS ARM64 / Python 3.11。Linux / WSL2 尚未实测；原生 Windows 不支持（使用 POSIX 文件权限和进程机制）。无需 CUDA、训练模型或私人数据。更高 Python 版本尚未逐一验证。
+使用Python 3.11或更高版本。下载本候选源码并解压，进入ECalX目录后执行：
 
-发布后从本仓库的 `v0.2.0-beta.1` 标签下载并解压源码，进入解压目录；或在标签发布后执行：
-
-```bash
-git clone --branch v0.2.0-beta.1 https://github.com/KihonnyTsang/ECalX.git
-cd ECalX
+```sh
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install .
 ecalx
 ```
 
-当前公开 main 仍是旧版，标签需另行确认后才会发布。安装测试与冻结依赖见 [验证说明](docs/validation.md)。
+打开终端显示的本机地址。默认只监听127.0.0.1，不收集Streamlit使用统计。源码也可运行：
 
-`ecalx` 打开已安装包内的 Streamlit 应用。浏览器访问终端给出的 `http://127.0.0.1:8501`；默认仅监听本机并禁用 Streamlit 使用统计。源码安装也可运行：
-
-```bash
+```sh
 python -m streamlit run app.py --server.address=127.0.0.1 --browser.gatherUsageStats=false
 ```
 
-## 无 Key 的离线使用
+仅实测macOS ARM64/Python 3.11；其他平台未实测。完整依赖由pip安装，不需要训练模型或CUDA。源码和wheel使用相同的包内BST计算代码。
 
-1. 从侧栏 **我的材料数据** 上传 UTF-8 CSV 或 Excel `.xlsx`，选择工作表并映射字段。旧 `.xls` 请另存为 `.xlsx`。
-2. 至少映射材料化学式。含数值的字段必须有对应单位列或明确的统一单位；检查预览、换算、空值及错误。存在错误时整批不写入，确认后保存原文件字节、映射与导入版本。
-3. 点击 **新建研究**，输入问题及可选条件，检查并确认生效条件，选择本地科研工具。确认计划后继续执行。
-4. 查看候选、来源、条件和真实工具收据，下载 Markdown 报告、任务 JSON；继续追问、比较候选。修改条件会建立新任务草稿，旧任务保持不变。
+## BYO Data：导入你自己的材料资料
 
-没有 Key 时在线入口禁用，离线流程仍完整可用，不向模型供应商发请求。离线追问以已保存证据和规则回答，没有 LLM 自由推理。
+进入“设置→数据库构建”，导入CSV或Excel并映射字段，或本地解析PDF后核对保存。CSV/Excel至少要有材料化学式，已有温度、电场、ΔT等数值需注明单位；未知条件保持空白。可用[合成软件示例](examples/README.md)熟悉操作，示例不是科研证据。
 
-可导入 [合成测试 CSV](examples/SYNTHETIC_TEST_DATA.csv) 熟悉操作。`example.invalid` 是占位来源，不是文献；所有示例数值均为软件测试构造，其中 `delta_labels` 示例有合成 ΔT 标签。由示例产生的候选和报告仅用于软件验证。
+在“研究工作台”填写问题、检查条件，运行证据检索、组成候选生成和独立化学校验，再查看报告或追问。新候选的正式性能保持unknown，M5正式推荐未启用。BST工具的材料和条件范围不限制这些普通研究功能。
 
-## 自己的 Key、模型与预算
+资料、历史和报告默认保存到 `~/.local/share/ecalx`。可在启动前指定 `ECALX_WORKSPACE`。
 
-在 **首次配置** 填写自己的 SiliconFlow Key、账户可用且支持 Function Calling 的 DeepSeek 模型 ID、供应商当前输入/输出单价和每日本地估算预算。支持 `deepseek-ai/DeepSeek-*` 格式；界面示例不是模型可用性或供应商当前定价的保证。配置检查不发请求。
+## BYO API：可选的在线研究
 
-Key 保存到 `~/.config/ecalx/.env`，目录权限 700、文件权限 600；模型和预算保存在同目录 `settings.json`。`ECALX_CONFIG_DIR` 可指定自己的受保护目录；进程环境变量 `SILICONFLOW_API_KEY` 优先。不要在研究问题、来源字段或追问中填写密钥。
+进入“设置→API配置”，填写自己的SiliconFlow API Key和账户可用、支持Function Calling的DeepSeek模型。在线请求会由供应商收费；开始前确认用量和发送范围。没有Key时仍可导入数据和运行本地研究。
 
-在线研究要求确认冻结条件、当次预算、外发范围及 Agent 计划。每次请求核对配置和预算；配置变更后需重新确认。每任务最多 10 次请求、16 次工具调用、累计 131072 Token，自动重试 0 次。失败任务不自动重发。
+Key及配置保存在 `~/.config/ecalx`，可用 `ECALX_CONFIG_DIR` 指定目录；不要将Key写入研究问题或CSV。原始文件、完整数据库和模型文件不向供应商发送。已有请求/Token限制继续生效；真实BYO供应商在线验收尚未完成，本轮没有调用付费API。
 
-外发内容：研究问题、冻结条件、工具定义；最多 8 条记录的组成/温度/场路径/方法/来源摘要，最多 4 个候选及少量种子来源/化学检查。追问仅外发所选证据块和最近 6 轮问题。原始上传文件、数据库原件、raw_metadata、工艺自由文本和模型文件不外发。供应商使用固定 HTTPS API，拒绝重定向。
+## BST电卡插值：先提供参考数据，再计算
 
-本机工作区 `api_usage.sqlite3` 记录用户自己的调用预留与用量。未知用量保留预留并阻止自动继续，需用户在供应商账单核对。预算按用户填写单价估算，**不是供应商账单硬限额**；没有自动对账/清零功能。本次发布验证未调用付费 API，真实 BYO 在线任务仍待独立验收。
+进入侧栏“BST电卡插值”，点击“选择参考CSV”。**未提供匹配的参考数据时，BST插值不可计算，页面不会显示1.54 K或任何替代数值。** 软件不附带、也不会自动下载原204条数据、论文PDF或原图，因为当前未确认这些数字化数据的公开再分发许可。
 
-## 数据与科学边界
+提供[空白CSV模板](ecalx_local/templates/BST_reference_template.csv)和[字段填写说明](docs/bst_csv_format.md)。模板可用表格软件或文本编辑器填写，但不含参考数值，也不是可计算数据集。当前功能仍只接受合法取得、SHA256匹配的冻结204点脱敏CSV；任意自行填写或重新读图的数据不会自动通过校验。普通BYO材料数据不受这个冻结版本要求限制。
 
-支持化学式、组成说明、温度、电场起终点/ΔE/上限/独立峰值、加载方向、direct/indirect、DOI/URL、样品形态/身份、协议、已有 ΔT/ΔS 标签及物理量口径/符号/单位、其他性能名称/值/单位。字段详见导入页。
+取得匹配参考数据后，填写Sr摩尔分数x（`0.20`表示20%，不是`20`）、温度K和文献标称撤场幅值kV/cm。支持范围为Ba₁₋ₓSrₓTiO₃块体陶瓷，x=0.05–0.35，场仅10、20、30 kV/cm，温度按所需参考曲线的实际交集判断；超范围不计算。
 
-- 空值保存为 null，不补温度或场端点为 0。ΔE、上限和峰值互不代替；已填端点与 ΔE 矛盾会报错。
-- 温度转换为 K、电场为 kV/cm；原值与原单位保留。ΔS 明确单位后换算为 J/(kg K)，ΔT 的 K/°C 温差不加 273.15。
-- ΔE 查询无需完整端点，支持 10/20/30/40/50 和非整数。明确 `0→20` 等路径时，缺端点的 ΔE 记录单列“幅度匹配、路径未确认”辅助证据，不计严格路径匹配。
-- 描述统计按来源、组成、温度、ΔE、direct/indirect、物理量口径、符号和协议分组；不改变标签符号，不生成跨协议性能排行榜。已有标签不等于候选预测。
-- 研究条件以温度、ΔE 和排除元素为常用输入，高级条件可填上限或路径。常用脉冲 `0→峰值→保持→0` 标为 ASSUMED；保持时间/升降速率/测量分支未知时不补齐。导入页的假设开关不写回真实端点。用户上传数据或 OBSERVED 自由文本不构成独立核验。
-- 来源缺失记录可检索，不作生成种子；用户提供 DOI/URL 不等于论文已独立核验。候选生成实际运行计量、位点替代/电荷补偿规则，独立校验化学约束，目前覆盖 ABO3、AO2、AB2O4。证据不足或超出规则可返回空结果。
-- 新候选始终 `generated_unverified`，ΔT/ΔS 为 `unknown`。BYO 不加载作者 RF/XGBoost，不训练模型；导入标签也不会开启预测。M5 禁用。
+页面区分“文献原始读图值”“温度插值”“组成插值”，显示参考组成、权重、DOI与图号。只在成功加载匹配数据后，x=0.20、323 K、30 kV/cm的示例才会计算并显示“ΔT插值估计：约1.54 K”。这来自已知曲线的研究性插值，不是通用AI预测或新材料性能的实验验证。
 
-[ΔE 规则](docs/delta_evidence_matching_20261014.md) · [协议规则](docs/field_protocol_20261014.md)
+来源：Dai等，[DOI：10.1111/ijac.13384](https://doi.org/10.1111/ijac.13384)，图8A–D，digitized读图数据。完整使用方法、数据哈希及许可处理见[BST说明](docs/bst_interpolation_20261021.md)和[许可核查](docs/bst_data_license.md)。也可通过 `ECALX_BST_REFERENCE_CSV` 显式指定本机合法参考文件。
 
-默认工作区 `~/.local/share/ecalx` 保存原始数据、导入版本、数据库、冻结快照、任务和对话。可在启动前指定：
+## 验证与许可
 
-```bash
-export ECALX_MODE=byo
-export ECALX_WORKSPACE="$PWD/my-local-workspace"
-export ECALX_CONFIG_DIR="$PWD/my-private-config"
-ecalx
-```
-
-每个研究冻结数据快照，后续导入不会改写历史报告/追问。配置和工作区是私人运行数据，不应提交到 Git。
-
-## 支持范围与未支持功能
-
-公开 BYO 仅开放检索、候选生成、化学校验、研究报告四个科研工具。无真实论文联网搜索/自动下载、DFT、模型加载/训练、实验设备控制、M5 正式推荐、插件市场或云服务。源码内保留原实验框架和显式 personal 兼容接口，它们不表示独立安装拥有实验后端或预测能力。
-
-`ECALX_MODE=personal` 仅供已经拥有原完整工程的人显式设置 `ECALX_SCIENCE_ROOT` 和 `ECALX_LOCAL_STORAGE` 使用；需要额外数据/模型/依赖，不包含在本次公开发行和独立 BYO 验收范围内。默认 BYO 不读取这些资产。
-
-## 测试、许可与发布审阅
-
-```bash
-python -m pip install ".[dev]" -c requirements-tested.txt
-python -m pytest -q
+```sh
+python -m pip install '.[dev]'
+python -B -m pytest -q
 python scripts/audit_release.py
 ```
 
-HTTP 契约测试用模拟供应商响应实际验证编码/解码、预算和任务状态机；**不是供应商联网或在线推理验收**。
+已有独立候选的182项通过记录原样保留，本候选的版本、安装和测试结果见[验证说明](docs/validation.md)。无合法BST数据时，相关数值检查会明确跳过，不能把跳过当作计算成功。发布文件和哈希见 `audit/public_files.txt`、`audit/SHA256SUMS`。
 
-源码 MIT，保留原版权；原创测试 CSV 为 CC0-1.0。依赖遵循各自许可，源码发行不重打包第三方库。见 [第三方许可](docs/third_party.md)、[公开范围](docs/release_scope.md)、[发布说明](docs/release_notes.md) 和 `audit/public_files.txt` / `audit/SHA256SUMS`。
+源码遵循[MIT许可](LICENSE)，第三方依赖保留各自许可。MIT不覆盖论文、用户数据或未获再分发许可的数字化数据；后续如确认相关权利，再单独决定是否公开数值数据。
 
-旧 `OWNER_APPROVAL.json` 只适用于 `0.1.0rc3-final1`，仍保留在原提交历史，已从新版文件树移除。它不批准 `0.2.0b1`；本候选没有伪造新批准，待所有者确认最终公开内容后再推送和创建 Pre-release。
+**English:** Bring your own API key and materials data. Local research works without an API key. BST is research literature interpolation, not a general AI performance predictor. Reference measurements are not bundled: provide a legally obtained, checksum-matching reference CSV. The blank CSV template documents the format; it cannot produce a calculation by itself.

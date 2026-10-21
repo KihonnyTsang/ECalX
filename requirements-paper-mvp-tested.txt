@@ -1,0 +1,8 @@
+# Additional offline PDF dependencies tested on macOS ARM64 / Python 3.11, 2026-10-15.
+# Use together with requirements-tested.txt; the beta release lock is unchanged.
+pdfplumber==0.11.10
+pdfminer.six==20260107
+pypdfium2==5.14.0
+cryptography==50.0.2
+cffi==2.1.1
+pycparser==3.11

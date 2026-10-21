@@ -18,10 +18,11 @@ def readonly_preflight(goals):
             quote=online_quote()
             ready=True
             checks=['已配置 SiliconFlow '+quote['model']+'；尚未验证供应商可达性、凭据或 Function Calling。',
-                    '每次请求前检查人工确认、当前配置、请求/Token/每日估算预算。',SCOPE]
+                    '每次请求前检查人工确认、当前配置、任务及每日请求/Token用量限额。',
+                    quote['notice'],SCOPE]
         except Exception:
             ready=False;quote=None
-            checks=['尚未配置有效在线 Key、模型或预算；离线科研工具可直接使用。',SCOPE]
+            checks=['在线配置或用量额度不可用，或存在未知用量；离线科研工具可直接使用。',SCOPE]
         return {'goals':goals,'checks':checks,'quote':quote,
                 'status':'CONFIGURED_NOT_VERIFIED' if ready else 'OFFLINE_READY',
                 'notice':'仅本地配置预检；没有联网，没有验证真实在线模型。',

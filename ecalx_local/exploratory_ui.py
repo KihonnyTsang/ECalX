@@ -50,15 +50,15 @@ def result_panel(result):
         show_protocol(result['parent_field_protocol'])
     status = result['status']
     if status == 'RESEARCH_ONLY':
-        st.markdown('<div class="card-meta">'+badge('RESEARCH_ONLY','teal')+badge('正式性能仍 unknown')+'</div>',unsafe_allow_html=True)
+        st.markdown('<div class="card-meta">'+badge('仅供探索','teal')+badge('性能待验证')+'</div>',unsafe_allow_html=True)
         st.metric('探索性 ΔT 估计（文献原报告标签）', f"{result['prediction_K']:.3f} K")
         inp = result['inputs']
         st.write(f"仅对应 **{inp['formula']}，{inp['temperature_K']:g} K，ΔE={inp['delta_E_kV_cm']:g} kV/cm**；"
                  + ('直接测量法' if inp['method'] == 'direct' else '间接推算法') + '，块体陶瓷，场路径未知。')
-        st.warning('这是已有研究模型的统计估计，不是实测性能、温区保证或制冷温降承诺。正式 ΔT 仍为 unknown。')
+        st.warning('这是已有研究模型的统计估计，不是实测性能、温区保证或制冷温降承诺。正式性能仍需验证。')
     else:
-        st.warning({'NEEDS_INPUT': '暂不估计：需要补充条件', 'REJECT': '当前条件拒答：不输出数值',
-                    'UNAVAILABLE': '工件核验失败：不输出数值'}[status])
+        st.warning({'NEEDS_INPUT': '暂不估计：需要补充条件', 'REJECT': '当前条件不支持估计',
+                    'UNAVAILABLE': '模型文件无法核验，暂不提供估计'}[status])
         for reason in result['reasons']:
             st.write('• ' + reason_text(reason))
     with st.expander('模型依据、训练条件与适用域'):
@@ -80,7 +80,7 @@ def result_panel(result):
             st.write('适用域结论：' + {'NOT_EVALUATED': '输入或研究条件未通过，尚未进入数值适用域检查。',
                 'REJECT': '超出模型适用域。', 'INTERNAL_EXPLORATION_ONLY': '通过 M4-C 检查，仅限内部探索。'}[decision])
             range_plot(result)
-    st.caption('正式 ΔT：unknown · ΔS：unknown（无有效预测器）· M5 禁用 · 候选顺序不按此数值调整')
+    st.caption('估计仅供探索，候选仍需实验验证，不用于性能排名。')
     with st.expander('为什么只能探索？科学限制'):
         for line in LIMITATIONS:
             st.write('• ' + line)
@@ -178,8 +178,8 @@ def estimator(prefix, *, formula=None, request=None, demo=False, parent_task_id=
 
 def demo_page():
     if not PERSONAL:
-        st.info("公开模式没有装载预测模型；ΔT/ΔS unknown。")
+        st.info("当前未配置可用的预测模型，暂不提供性能估计。")
         return
-    section_header('离线模型探索', '探索一个明确的温度点', '使用已有研究模型，了解条件适用域和统计估计的边界。')
+    section_header('离线模型探索', '探索一个明确的温度点', '选择材料与测试条件，查看已有模型可提供的探索性估计。')
     science_note()
     estimator('dt_demo',demo=True)

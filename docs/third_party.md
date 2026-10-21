@@ -1,4 +1,4 @@
-# 0.2.0b1 源码与第三方许可
+# 0.2.0b2 源码与第三方许可
 
 ECalX 源码为 KihonnyTsang 自有 MIT 代码，沿用原公开仓库 LICENSE 版权和许可全文。BYO 开发源码输入的逐文件 SHA256 见 audit/source_provenance.json，完整 Git 历史保留。代码复用与适配不改变原版权声明。
 

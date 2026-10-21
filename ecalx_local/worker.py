@@ -27,7 +27,7 @@ def run(tid, storage):
         try:
             if task['client_mode']=='LIVE_LLM':
                 # Only reached after this particular user's explicit online consent.
-                if not task.get('online_consent') or task['online_consent'] != online_quote():
+                if not task.get('online_consent') or task['online_consent'] != online_quote(check_usage=False):
                     raise ValueError('在线预算已改变或未确认，请新建任务')
                 if not PERSONAL:
                     from .configuration import load_credentials
@@ -36,7 +36,7 @@ def run(tid, storage):
                     load_local_env(agent.root)  # Backend only: never return credentials to UI/logs.
                 client = LiveClient(budget={k:v for k,v in task['limits'].items()
                                           if k in LLMBudget.model_fields},
-                                    prices=task['online_consent']['prices'])
+                                    prices=task['online_consent'].get('prices') if PERSONAL else None)
                 client.bind(agent, tid)
             else:
                 client = LocalWorkflow()

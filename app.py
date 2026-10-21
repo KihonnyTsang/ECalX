@@ -11,15 +11,37 @@ from ecalx_local.ui import theme, section_header, STATUS_LABELS
 from ecalx_local.ui_home import home
 from ecalx_local.ui_research import research, downloads
 from ecalx_local.exploratory_ui import demo_page
+from ecalx_local.bst_ui import bst_page
 
 from ecalx_local.setup_ui import setup_page, data_page
+from ecalx_local.titles import research_title
 st.set_page_config(page_title='ECalX · 材料研究工作台',page_icon='◈',layout='wide')
 theme()
 agent=LocalAgent(STORAGE)
+# Keep draft widget values while their page is hidden (Streamlit cleans up
+# unrendered widget keys otherwise). Inputs outside a form sync before navigation.
+for key in list(st.session_state):
+    if key.startswith(('home_', 'manual_', 'bst_')):
+        st.session_state[key] = st.session_state[key]
+
+
+def navigate_main():
+    st.session_state.workspace = st.session_state.main_navigation
+
+
+def open_settings():
+    st.session_state.workspace = '设置'
+    st.session_state.main_navigation = None
+
+
+
+def select_settings(page):
+    st.session_state.settings_page = page
 
 
 def open_history(task_id=None):
     st.session_state.workspace='研究与历史'
+    st.session_state.main_navigation='研究与历史'
     st.query_params.pop('view',None)
     st.query_params.pop('task',None)
     st.session_state.pop('research_change_draft',None)
@@ -33,7 +55,7 @@ def open_history(task_id=None):
 
 
 def nav_label(value):
-    return {'研究与历史':'研究工作台','历史研究':'历史研究','离线模型演示':'离线模型探索','研究报告':'研究报告','首次配置':'首次配置','导入数据':'我的材料数据'}[value]
+    return {'研究与历史':'研究工作台','历史研究':'历史研究','离线模型演示':'离线模型探索','BST电卡插值':'BST电卡插值','研究报告':'研究报告','设置':'设置'}[value]
 
 
 with st.sidebar:
@@ -41,9 +63,11 @@ with st.sidebar:
     st.caption(f'AI 材料研究工作台 · {__version__}')
     st.button('＋ 新建研究',use_container_width=True,on_click=open_history,type='primary')
     if 'workspace' not in st.session_state:
-        st.session_state.workspace='离线模型演示' if st.query_params.get('view')=='exploratory' else '研究与历史'
-    workspace=st.radio('研究工作区',(['研究与历史','历史研究','离线模型演示','研究报告'] if PERSONAL else ['研究与历史','历史研究','研究报告','首次配置','导入数据']),
-                       format_func=nav_label,key='workspace',label_visibility='collapsed')
+        st.session_state.workspace={'exploratory':'离线模型演示','bst':'BST电卡插值'}.get(st.query_params.get('view'),'研究与历史')
+        st.session_state.main_navigation=st.session_state.workspace
+    st.radio('研究工作区',(['研究与历史','历史研究','离线模型演示','BST电卡插值','研究报告'] if PERSONAL else ['研究与历史','历史研究','BST电卡插值','研究报告']),
+             format_func=nav_label,key='main_navigation',label_visibility='collapsed',on_change=navigate_main)
+    workspace=st.session_state.workspace
     tasks=agent.list_tasks()
     linked=st.query_params.get('task')
     if 'task_id' not in st.session_state and linked in {t['id'] for t in tasks}:
@@ -51,32 +75,45 @@ with st.sidebar:
     st.divider()
     st.caption('最近研究')
     for task in tasks[:8]:
-        title=(task['original'] or '开放探索').replace('\n',' ')
+        title=research_title(task).replace('\n',' ')
         state=STATUS_LABELS.get(task['status'],task['status'])
-        st.button(state+' · '+title[:24],key='history_'+task['id'],use_container_width=True,
+        st.button(state+' · '+title,key='history_'+task['id'],use_container_width=True,
                   on_click=open_history,args=(task['id'],),help=title)
     if not tasks:
         st.caption('你的研究会自动保存在这里。')
-    st.divider()
-    st.caption('本机科研数据与工具\n\nM5 正式推荐未启用')
+    with st.container(key='settings_footer'):
+        st.divider()
+        st.caption('数据与研究保存在本机')
+        st.button('设置',icon=':material/settings:',use_container_width=True,on_click=open_settings)
 
-if workspace=='首次配置':
-    setup_page()
-elif workspace=='导入数据':
-    data_page()
+
+if workspace=='设置':
+    settings_page=st.session_state.get('settings_page','API 配置')
+    with st.container(key='settings_switch'):
+        columns=st.columns(2,gap='small')
+        for column,page in zip(columns,['API 配置','数据库构建']):
+            column.button(page,key='settings_'+page,use_container_width=True,
+                          type='primary' if settings_page==page else 'secondary',
+                          on_click=select_settings,args=(page,))
+    if settings_page=='API 配置':
+        setup_page()
+    else:
+        data_page()
 elif workspace=='离线模型演示':
     demo_page()
+elif workspace=='BST电卡插值':
+    bst_page()
 elif workspace in {'历史研究','研究报告'}:
     report_view=workspace=='研究报告'
     section_header('研究工作区',workspace,'每次研究独立保存，随时回到证据与对话。' if not report_view else '下载真实研究结果与阶段报告。')
     query=st.text_input('搜索研究',placeholder='按研究问题搜索…')
-    filtered=[t for t in tasks if query.casefold() in (t['original'] or '开放探索').casefold()]
+    filtered=[t for t in tasks if query.casefold() in research_title(t).casefold()]
     if not filtered:
         st.info('暂无匹配研究。点击侧栏“新建研究”开始。')
     for task in filtered:
         with st.container(border=True):
-            st.markdown('**'+(task['original'] or '开放探索').replace('\n',' ')+'**')
-            mode='DeepSeek Agent' if task['client_mode']=='LIVE_LLM' else '本地科研工具'
+            st.markdown('**'+research_title(task).replace('\n',' ')+'**')
+            mode='DeepSeek 在线研究' if task['client_mode']=='LIVE_LLM' else '本地研究'
             st.caption(STATUS_LABELS.get(task['status'],task['status'])+' · '+mode)
             if report_view:
                 downloads(task,agent)
@@ -85,6 +122,4 @@ elif workspace in {'历史研究','研究报告'}:
 elif st.session_state.get('task_id'):
     research(agent,STORAGE,open_history)
 else:
-    if not PERSONAL:
-        st.info('BYO API & Data · 无 Key 可离线研究；请先从侧栏“我的材料数据”导入你自己的 CSV/Excel。“首次配置”可设置在线 Key 与预算。')
     home(STORAGE)

@@ -3,11 +3,11 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "ecalx-byo"
-version = "0.2.0b1"
+version = "0.2.0b2"
 description = "Local evidence-grounded materials research with your API and data"
 license = {file = "LICENSE"}
 requires-python = ">=3.11"
-dependencies = ["streamlit>=1.40,<2", "pandas>=2.2,<3", "openpyxl>=3.1,<4", "pydantic>=2.10,<3", "numpy>=1.26,<3"]
+dependencies = ["streamlit>=1.40,<2", "pandas>=2.2,<3", "openpyxl>=3.1,<4", "pydantic>=2.10,<3", "numpy>=1.26,<3", "pdfplumber>=0.11,<0.12"]
 [project.optional-dependencies]
 dev = ["pytest>=8,<9"]
 [project.scripts]
@@ -17,6 +17,6 @@ packages = ["ecalx_local", "ecalx", "ecalx.agent", "ecalx.domain", "ecalx.materi
 [tool.setuptools.package-dir]
 ecalx = "src/ecalx"
 [tool.setuptools.package-data]
-ecalx_local = ["ui.css", "app.py"]
+ecalx_local = ["ui.css", "app.py", "templates/*.csv"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]

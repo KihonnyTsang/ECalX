@@ -259,6 +259,13 @@ class LocalAgent(ResearchAgent):
 
 
 class LiveClient(SiliconFlowChatCompletionsClient):
+    def __init__(self, budget=None, prices=None):
+        if not PERSONAL:
+            from .configuration import configured_budget
+            budget = budget if budget is not None else configured_budget().model_dump()
+            prices = None
+        super().__init__(budget=budget, prices=prices)
+
     max_body_bytes = 32000
     system_prompt = (
         'You are ECalX Research Agent. Use real function calls, never text emulation. '
@@ -287,18 +294,18 @@ class LiveClient(SiliconFlowChatCompletionsClient):
                 or not task.get('online_consent')
                 or (task['plan'] and (not task['plan_confirmed'] or task['plan']['goals'] != task['frozen_goals']))):
             raise ProviderError('需要本任务的用户确认和冻结条件', code='PLAN_APPROVAL_REQUIRED')
-        if not PERSONAL and task.get('online_consent') != online_quote():
+        if not PERSONAL and task.get('online_consent') != online_quote(check_usage=False):
             raise ProviderError('在线配置或预算已改变，需要重新确认', code='PLAN_APPROVAL_REQUIRED')
         safe(json.loads(raw))
         if raw != self.request_body(self.agent.context(task), self.agent.available_tools(task)):
             raise ProviderError('出站内容与当前合法任务不符', code='EGRESS_REJECTED')
 
 
-def online_quote():
+def online_quote(*, check_usage=True):
     """Read-only, no key lookup, no provider call, no ledger creation/reset."""
     if not PERSONAL:
         from .configuration import quote
-        return quote()
+        return quote(check_usage=check_usage)
     _, cfg = settings(SCIENCE_ROOT)
     status = budget_status(SCIENCE_ROOT)
     if status['control']['halted']:

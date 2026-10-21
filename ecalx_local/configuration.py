@@ -1,4 +1,4 @@
-"""Per-user credentials and explicit user-priced budgets. No provider calls."""
+"""Private local credentials and price-independent usage limits. No provider calls."""
 import json
 import os
 import re
@@ -7,7 +7,16 @@ from pathlib import Path
 from . import SCIENCE_ROOT
 from ecalx.agent.config import BASE_URL, MODEL
 from ecalx.agent.llm import ProviderError
-from ecalx.agent.siliconflow import TokenPrices
+from ecalx.agent.siliconflow import LLMBudget
+
+# Conservative defaults; bounded adjustments reuse the existing runtime limits.
+LIMITS = {
+    'daily_requests': (20, 1, 200), 'daily_tokens': (262144, 1024, 2000000),
+    'task_requests': (10, 1, 48), 'task_tokens': (131072, 1024, 1000000),
+    'task_tool_calls': (16, 1, 64), 'output_tokens': (1024, 64, 4096),
+    'request_seconds': (60, 1, 180), 'task_seconds': (180, 1, 600),
+}
+DEFAULT_LIMITS = {key: spec[0] for key, spec in LIMITS.items()}
 
 SCOPE = ('研究问题、人工确认的条件、工具定义；最多8条检索记录的组成/温度/场路径/方法/来源摘要，'
          '最多4个候选及其种子来源和独立化学检查。追问仅发送所选已保存证据块、当前问题及最近6轮问题。'
@@ -28,13 +37,30 @@ def validate_config(value):
     model = value.get('model', MODEL)
     if not re.fullmatch(r'deepseek-ai/DeepSeek-[A-Za-z0-9._-]+', model):
         raise ValueError('请填写 SiliconFlow 的 DeepSeek 模型 ID，例如 deepseek-ai/DeepSeek-V4-Flash')
-    prices = TokenPrices.model_validate(value.get('prices', {})).model_dump()
-    if any(prices[k] <= 0 for k in ('input_per_million','output_per_million')):
-        raise ValueError('请按供应商当前价格填写正数单价；不会使用默认历史价格')
-    cap = value.get('daily_cny')
-    if type(cap) not in (int,float) or not 0 < cap <= 1000:
-        raise ValueError('每日本地估算预算须在0–1000元之间（不含0）')
-    return {'model':model, 'prices':prices, 'daily_cny':float(cap)}
+    limits = value.get('usage_limits', {})
+    if not isinstance(limits, dict) or set(limits) - set(LIMITS):
+        raise ValueError('用量限额字段无效')
+    normalized = {}
+    for key, (default, low, high) in LIMITS.items():
+        amount = limits.get(key, default)
+        if type(amount) is not int or not low <= amount <= high:
+            raise ValueError('用量限额无效：' + key)
+        normalized[key] = amount
+    # Legacy pricing is retained as local metadata, never required or trusted
+    # for admission or displayed as a current supplier quote.
+    legacy = {key: value[key] for key in ('prices', 'daily_cny') if key in value}
+    return {'model':model, 'usage_limits':normalized, **legacy}
+
+
+def configured_budget(*, followup=False, cfg=None):
+    limits = (cfg or read_config())['usage_limits']
+    return LLMBudget(llm_requests=min(limits['task_requests'], 2) if followup else limits['task_requests'],
+        tool_calls=min(limits['task_tool_calls'], 2) if followup else limits['task_tool_calls'],
+        request_tokens=limits['output_tokens'],
+        total_tokens=min(limits['task_tokens'], 65536) if followup else limits['task_tokens'],
+        request_seconds=limits['request_seconds'],
+        seconds=min(limits['task_seconds'], 150) if followup else limits['task_seconds'],
+        transport_retries=0)
 
 def read_config():
     directory = config_dir()
@@ -59,6 +85,19 @@ def atomic_private(name, text):
         temp.unlink(missing_ok=True)
 
 def save_config(value, key=''):
+    # Updating limits/model without entering a key leaves the private .env intact.
+    value = dict(value)
+    model = value.get('model', '')
+    if not isinstance(model, str):
+        raise ValueError('请填写有效的模型 ID')
+    if model.strip():
+        value['model'] = model.strip()
+    else:
+        value.pop('model', None)
+    if (config_dir()/'settings.json').exists():
+        value = {**read_config(), **value}
+    elif 'model' not in value:
+        raise ValueError('首次配置请填写模型 ID')
     value=validate_config(value)
     if key and (not re.fullmatch(r'[A-Za-z0-9_.-]{8,4096}',key)):
         raise ValueError('API Key 格式无效；不要包含空白或引号')
@@ -86,20 +125,25 @@ def credential_configured():
     except (ValueError,OSError):
         return False
 
-def quote():
-    from .engine import BUDGET
+def quote(*, followup=False, check_usage=True):
     cfg=read_config()
     if not credential_configured():
         raise ProviderError('未配置受保护的本地 API Key；可使用离线工具',code='MISSING_CREDENTIAL')
-    rate=max(v for v in cfg['prices'].values() if v is not None)
+    budget = configured_budget(followup=followup, cfg=cfg)
+    limits = cfg['usage_limits']
     from .byo_policy import usage_status
     status=usage_status()
-    worst=round(BUDGET.total_tokens*rate/1_000_000,6)
-    if status['unknown'] or status['cost']+worst > cfg['daily_cny']:
-        raise ProviderError('本地预算不足或存在未知用量；未发请求',code='BUDGET_LIMIT')
-    return {'expected_requests':'约7–10次；空证据可提前结束', 'max_requests':BUDGET.llm_requests,
-        'max_tokens':BUDGET.total_tokens,'max_estimated_cny':worst,
-        'request_seconds':BUDGET.request_seconds,'task_seconds':BUDGET.seconds,
-        'prices':cfg['prices'], 'model':cfg['model'],'daily_cny':cfg['daily_cny'],
-        'rate_valid_through':'用户本机配置，变更后须重新确认',
-        'scope':SCOPE, 'notice':'按你填写的单价保守估算；本地预算不是供应商账单硬上限。无自动重试。'}
+    if check_usage:
+        if status['unknown']:
+            raise ProviderError('存在未知供应商用量；未发请求', code='UNKNOWN_USAGE')
+        if (status['requests'] + budget.llm_requests > limits['daily_requests']
+                or status['tokens'] + budget.total_tokens > limits['daily_tokens']):
+            raise ProviderError('每日用量不足以容纳本任务上限；未发请求', code='BUDGET_LIMIT')
+    # Consent contains stable limits, not a moving balance. Every actual send
+    # still performs transactional daily/task accounting in BYOPolicy.
+    return {'expected_requests':f'最多{budget.llm_requests}次：读取证据、引用证据回答' if followup else '通常约7–10次；空证据可提前结束',
+        'max_requests':budget.llm_requests, 'max_tokens':budget.total_tokens,
+        'max_tool_calls':budget.tool_calls, 'output_tokens':budget.request_tokens,
+        'request_seconds':budget.request_seconds,'task_seconds':budget.seconds,
+        'model':cfg['model'], 'daily_requests':limits['daily_requests'], 'daily_tokens':limits['daily_tokens'],
+        'scope':SCOPE, 'notice':'SiliconFlow 在线请求可能产生费用；实际费用请以供应商账单为准。无自动重试。'}

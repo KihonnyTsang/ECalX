@@ -98,7 +98,7 @@ def explore_materials(request, repository, *, max_seeds=8, max_candidates=48):
             continue
         key = exact_key(amounts)
         known.setdefault(key, []).append(reference(r))
-        if not (r.doi or r.url) or 'quarantined' in r.quality_flags:
+        if not (r.doi or r.url) or 'quarantined' in r.quality_flags or getattr(r, 'experimental_response', False):
             continue
         for family, rule in REGISTRY.rules.items():
             try:

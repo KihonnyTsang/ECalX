@@ -17,8 +17,9 @@ class LiveIdentity:
 def live_identity():
     identity=LiveIdentity()
     if not PERSONAL:
-        from .configuration import read_config
+        from .configuration import read_config, configured_budget
         identity.model=read_config()['model']
+        identity.budget=configured_budget()
     return identity
 
 
@@ -39,8 +40,9 @@ def create_research(prepared, mode, *, confirmed=False, consent=None, storage=No
         if fingerprint(parent) != prepared.get('parent_sha256'):
             raise ValueError('来源研究已变化，请重新核对新任务草稿')
     engine = LocalAgent(storage)
+    identity = live_identity() if mode=='live' else LocalWorkflow()
     task = engine.create_task(prepared['raw'].get('natural_language', ''),
-                              live_identity() if mode=='live' else LocalWorkflow(), budget=BUDGET)
+                              identity, budget=identity.budget if mode=='live' else BUDGET)
     engine.establish_goals(task['id'], prepared['goals'], confirmed=True)
     task = engine.get(task['id'])
     task['input_snapshot'] = prepared

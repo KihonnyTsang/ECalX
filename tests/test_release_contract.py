@@ -1,4 +1,4 @@
-"""0.2.0b1 release gates: complete delta queries and truthful report UI."""
+"""0.2.0b2 release gates: complete delta queries and truthful report UI."""
 import json
 from pathlib import Path
 import tomllib
@@ -56,7 +56,7 @@ def test_imported_delta_through_real_toolchain(isolation, tmp_path, value):
 
 def test_release_version_and_auxiliary_evidence_downloads(isolation, tmp_path, monkeypatch):
     from ecalx import __version__
-    assert __version__ == tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['version'] == '0.2.0b1'
+    assert __version__ == tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['version'] == '0.2.0b2'
     assert (ROOT/'app.py').read_bytes() == (ROOT/'ecalx_local/app.py').read_bytes()
     raw = b'formula,e_delta,field_unit,url,data_kind\nBaTiO3,20,kV/cm,https://example.invalid/SYNTHETIC_TEST_DATA,SYNTHETIC_TEST_DATA\n'
     p = preview(raw, 'SYNTHETIC_TEST_DATA.csv', {k: k for k in ('formula', 'e_delta', 'field_unit', 'url', 'data_kind')})
@@ -72,7 +72,7 @@ def test_release_version_and_auxiliary_evidence_downloads(isolation, tmp_path, m
     app = AppTest.from_file(str(ROOT/'app.py')).run(timeout=20)
     app.session_state.task_id = task['id']; app.run()
     assert not app.exception
-    assert any('0.2.0b1' in c.value for c in app.caption)
+    assert any('0.2.0b2' in c.value for c in app.caption)
     assert not any('目标条件下无匹配实验依据' in e.value for e in app.error)
     assert any('幅度' in w.value for w in app.warning)
     # AppTest renders the actual download widgets and payload-bearing protos.
