@@ -11,33 +11,33 @@ from ecalx.data.repository import EvidenceRepository
 from .field_protocol import imported_protocol
 from .protocol_ui import reference_controls, build_reference, show_protocol
 from .manual_ui import record_preview
+from .bst_tool import BSTUnavailable
 
 def setup_page():
-    section_header('设置','API 配置','填写在线研究所需的 API Key。本地研究无需配置。')
-    st.caption('保存配置不会联网或产生费用。')
+    st.subheader('API 配置')
+    st.caption('用于在线研究；本地研究无需配置。')
     try:cfg=read_config()
     except Exception:cfg={'model':None,'usage_limits':DEFAULT_LIMITS}
     with st.form('byo_settings',clear_on_submit=True):
-        key=st.text_input('API Key',type='password')
-        model=st.text_input('模型名称',value='')
-        st.caption('首次配置请填写模型 ID，格式为 deepseek-ai/DeepSeek-型号。留空保留已保存的模型和密钥。')
-        st.caption('在线研究可能产生费用，以供应商账单为准。每次研究和追问前会确认用量。')
+        key=st.text_input('API Key',type='password',placeholder='输入密钥；留空保留已保存的密钥')
+        model=st.text_input('模型名称',value='',placeholder='deepseek-ai/DeepSeek-型号')
+        st.caption('留空保留现有配置，保存不会发起在线请求。')
         labels={'daily_requests':'每日最多模型请求次数','daily_tokens':'每日最多 Token 数量',
             'task_requests':'每任务最多模型请求次数','task_tokens':'每任务最多 Token 数量',
             'task_tool_calls':'每任务最多工具调用次数','output_tokens':'每请求最多输出 Token 数量',
             'request_seconds':'每请求时间上限（秒）','task_seconds':'每任务时间上限（秒）'}
         limits={}
-        with st.expander('高级设置 · 用量上限',expanded=False):
-            st.caption('可调低或在允许范围内调整；每日额度按 UTC 日期累计，研究和在线追问共用。未知供应商用量会阻止后续发送，自动重试0次。')
+        with st.expander('高级用量配置',expanded=False):
+            st.caption('每日额度按 UTC 累计，研究与追问共用；在线请求前确认用量。')
             for name,label in labels.items():
                 _,low,high=LIMITS[name]
                 limits[name]=st.number_input(label,min_value=low,max_value=high,value=cfg['usage_limits'][name],step=1)
-        submitted=st.form_submit_button('仅保存本机配置',type='primary')
+        submitted=st.form_submit_button('保存配置',type='primary')
     if submitted:
         try:
             save_config({'model':model,'usage_limits':limits},key)
             cfg=read_config()
-            st.success('已保存到受保护的本地配置；未发送任何 API 请求。')
+            st.success('配置已保存')
         except ValueError as error:
             st.error('配置未保存：'+str(error))
         except Exception:
@@ -46,22 +46,15 @@ def setup_page():
         st.caption('当前已配置模型：'+cfg['model'])
     else:
         st.caption('尚未配置模型。')
-    st.write('在线状态：'+('已配置，未经在线验证' if credential_configured() else '尚未配置有效 Key；离线可用'))
-    with st.expander('帮助说明 · 配置位置与数据发送'):
+    st.caption('密钥已配置，尚未在线验证' if credential_configured() else '尚未配置密钥')
+    with st.expander('数据发送说明'):
         st.write(SCOPE)
-        st.caption('配置位置：'+str(config_dir()))
-        st.caption('材料工作区：'+str(SCIENCE_ROOT))
-        st.caption('可用 ECALX_WORKSPACE 指定工作区。配置目录权限 700，文件权限 600。')
-        st.code('python3 -m venv .venv\nsource .venv/bin/activate\npython -m pip install ".[dev]"\necalx',language='bash')
 
 
 def data_page():
-    section_header('设置','数据库构建','导入或录入材料数据，保存在本机。')
-    st.caption('支持 CSV / Excel（.xlsx）、手动录入和论文 PDF 自动提取。数据经核对后保存在本机。')
-    with st.expander('帮助说明 · 数据录入规则'):
-        st.write('缺失字段保持空缺；电场起点、终点、变化幅度、峰值和上限分别记录，不互相代填。直接法与间接法分别保留。')
-        st.write('数据来源尚未独立核验。导入数据后仍不提供正式性能预测或排名。')
-    bulk, manual, papers = st.tabs(['批量导入现有数据','手动录入实验数据','论文数据自动提取'])
+    st.subheader('数据库构建')
+    st.caption('导入资料，核对后保存到本机。')
+    bulk, manual, papers, references = st.tabs(['文件上传','实验数据录入','论文数据提取','参考曲线'])
     with bulk:
         bulk_import()
     with manual:
@@ -70,9 +63,33 @@ def data_page():
     with papers:
         from .paper_ui import paper_import
         paper_import(SCIENCE_ROOT)
+    with references:
+        from .bst_reference import import_reference, metadata, workspace_root
+        root = workspace_root()
+        st.subheader('BST 文献参考曲线')
+        st.caption('导入一次，即可在研究工作台计算电卡温变。')
+        st.markdown('[Dai 等 · 文献来源](https://doi.org/10.1111/ijac.13384) · 图 8A–D')
+        st.caption('BST 块体陶瓷 · x = 0.05–0.35 · ΔE = 10、20、30 kV/cm')
+        st.caption('204 个文献读图点 · 12 条曲线 · 1 篇论文；非独立实验次数。')
+        try:
+            saved = metadata(root)
+            if saved:
+                from .bst_tool import load_interpolator
+                load_interpolator(root=root)
+                st.success('参考曲线已就绪')
+                with st.expander('参考数据来源、版本与适用范围'):
+                    st.json(saved)
+            else:
+                reference = st.file_uploader('导入有权使用的BST参考CSV', type=['csv'], key='reference_csv_import')
+                st.caption('上传匹配的 204 点参考 CSV。')
+                if reference is not None and st.button('导入文献参考数据', key='import_literature_reference'):
+                    import_reference(reference.getvalue(), root)
+                    st.rerun()
+        except (OSError, ValueError, TypeError, BSTUnavailable):
+            st.error('参考数据读取或冻结校验失败；未导入实验数据库。请检查匹配的204点CSV。')
     repo=EvidenceRepository(SCIENCE_ROOT/'data/evidence.sqlite3')
     records=repo.records()
-    st.write('本机记录数：'+str(len(records)))
+    st.caption('实验数据：'+str(len(records))+' 条')
     if records:
         with st.expander('检索本机材料记录',expanded=True):
             query=st.text_input('检索化学式、来源或样品编号',key='data_search')
@@ -108,13 +125,13 @@ def data_page():
                 with st.expander('完整记录与原 Excel 出处'):
                     st.json(matches[selected_detail])
         with st.expander('高级分析 · 加电方式与模型支持条件'):
-            st.caption('这里单独选择研究参考；不改变原始文件、导入记录或历史任务。direct / indirect 可以同条件对照，分别保留，不默认等价或合并标签。')
+            st.caption('直接法与间接法分别对照；参考条件不会改写原始记录。')
             selected=st.selectbox('选择原始记录',range(len(records)),
                 format_func=lambda i: records[i].record_id+' · '+records[i].formula_normalized+' · '+records[i].measurement_method)
             record=records[selected]
             original=imported_protocol(record)
-            st.write(f"协议未知 · UNKNOWN（上传字段未核验）；真实端点 {original['start_kV_cm']} → {original['end_kV_cm']} kV/cm；"
-                     f"提供的峰值 {original['peak_kV_cm']}；ΔE {original['delta_kV_cm']}；上限 {original['upper_bound_kV_cm']}。None 表示 null。")
+            st.write(f"加电方式待核实；真实端点 {original['start_kV_cm']} → {original['end_kV_cm']} kV/cm；"
+                     f"提供的峰值 {original['peak_kV_cm']}；ΔE {original['delta_kV_cm']}；上限 {original['upper_bound_kV_cm']}。未提供的字段留空。")
             values=reference_controls('data_ref_'+record.record_id)
             model=st.selectbox('检查现有研究模型的适用性',['RandomForest','XGBoost'])
             if getattr(record,'experimental_response',False):
@@ -134,7 +151,8 @@ def data_page():
                     st.caption('参考协议未并入证据匹配，未改写真实条件。')
                 except ValueError as error:
                     st.error(str(error))
-    with st.expander('数据版本与导入记录'):
+    with st.expander('数据规则与导入记录'):
+        st.caption('缺失字段保持空缺；电场各字段分别记录，直接法与间接法分别保留。来源未经独立核验。')
         st.json(repo.logs())
 
 
@@ -173,7 +191,7 @@ def bulk_import():
             if result and result['sha256']==__import__('hashlib').sha256(content).hexdigest():
                 st.write(f"文件 {result['rows']} 行；有效 {len(result['records'])} 行；错误 {len(result['errors'])} 行。")
                 st.dataframe([record_preview(r) for r in result['preview']],hide_index=True)
-                with st.expander('高级详情 · 完整导入记录'):
+                with st.expander('完整导入记录'):
                     st.json(result['preview'])
                 st.caption('来源尚未独立核验，缺少的电场起点和终点保持空缺。')
                 if result['warnings']:st.dataframe(result['warnings'],hide_index=True)

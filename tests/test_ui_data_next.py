@@ -124,18 +124,18 @@ def test_navigation_preserves_unsubmitted_and_reviewed_draft(tmp_path,monkeypatc
     button(at,'设置').click().run()
     assert not at.exception
     next(b for b in at.button if b.label=='数据库构建').click().run()
-    at.radio(key='main_navigation').set_value('研究与历史').run()
+    at.button(key='nav_研究与历史').click().run()
     assert at.text_input(key='home_edelta').value=='100'
-    at.radio(key='main_navigation').set_value('历史研究').run()
-    at.radio(key='main_navigation').set_value('研究与历史').run()
+    at.button(key='nav_历史研究').click().run()
+    at.button(key='nav_研究与历史').click().run()
     assert at.text_input(key='home_tmin').value=='0'
     assert at.text_input(key='home_tmax').value=='40'
     assert at.text_input(key='home_edelta').value=='100'
-    button(at,'检查研究条件').click().run()
+    button(at,'开始研究').click().run()
     frozen=deepcopy(at.session_state['prepared'])
     button(at,'设置').click().run()
-    at.radio(key='main_navigation').set_value('研究报告').run()
-    at.radio(key='main_navigation').set_value('研究与历史').run()
+    at.button(key='nav_研究报告').click().run()
+    at.button(key='nav_研究与历史').click().run()
     assert at.session_state['prepared']==frozen
     assert any(TITLE in x.value for x in at.markdown)
 
@@ -186,7 +186,7 @@ def test_history_titles_retrieval_and_immutable_snapshots(isolation,tmp_path,mon
     prior=EvidenceRepository(isolation/'data/evidence.sqlite3').records()[0].to_dict()
     raw,p=preview_manual({'formula':'SrTiO3','e_delta':'100','field_unit':'kV/cm'});commit(raw,p,isolation)
     at=app(tmp_path,monkeypatch)
-    at.radio(key='main_navigation').set_value('历史研究').run()
+    at.button(key='nav_历史研究').click().run()
     assert any(TITLE in x.value for x in at.markdown)
     at.text_input[0].set_value('0–40°C').run()
     assert any(TITLE in x.value for x in at.markdown)
@@ -197,3 +197,17 @@ def test_history_titles_retrieval_and_immutable_snapshots(isolation,tmp_path,mon
     assert Path(done['evidence_snapshot']).read_bytes()==snapshot
     assert prior in [r.to_dict() for r in EvidenceRepository(isolation/'data/evidence.sqlite3').records()]
     assert not (isolation/'api_usage.sqlite3').exists()
+
+
+def test_new_research_clears_inputs_and_previous_interpolation(tmp_path,monkeypatch):
+    at=app(tmp_path,monkeypatch)
+    at.text_input(key='home_composition').set_value('Ba0.8Sr0.2TiO3')
+    at.text_input(key='home_edelta').set_value('30')
+    at.selectbox(key='home_tunit').set_value('K').run()
+    at.session_state.literature_draft={'input_sha256':'old-result'}
+    button(at,'新建研究').click().run()
+    assert not at.exception
+    assert at.text_input(key='home_composition').value==''
+    assert at.text_input(key='home_edelta').value==''
+    assert at.selectbox(key='home_tunit').value=='°C'
+    assert 'literature_draft' not in at.session_state

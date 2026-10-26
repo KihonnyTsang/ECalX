@@ -1,4 +1,4 @@
-# 0.2.0b2 源码与第三方许可
+# 0.2.0b3 源码与第三方许可
 
 ECalX 源码为 KihonnyTsang 自有 MIT 代码，沿用原公开仓库 LICENSE 版权和许可全文。BYO 开发源码输入的逐文件 SHA256 见 audit/source_provenance.json，完整 Git 历史保留。代码复用与适配不改变原版权声明。
 
@@ -9,3 +9,5 @@ examples 下三个原创 SYNTHETIC_TEST_DATA CSV 为 CC0-1.0 合成软件输入�
 直接依赖：Streamlit Apache-2.0；pandas BSD-3-Clause；NumPy BSD 及其 wheel 内多种许可；openpyxl/Pydantic/pytest MIT。传递依赖各自许可仍适用，包括 certifi MPL-2.0、typing_extensions PSF-2.0、packaging Apache-2.0 OR BSD-2-Clause 等。许可元数据不是把依赖重新许可为 MIT；没有缺省把未知许可判为 MIT。
 
 源码与 wheel 文件范围审计不等于独立法律意见或所有者的新公开批准。用户自行导入数据/Key 的权利和隐私范围由其自己管理，不包含在发行中。
+
+PDF 工具链同样由 pip 单独安装：pdfplumber、pdfminer.six、pypdfium2 及 PDFium 相关通知按各自发行版保留。当前实测版本和许可文件哈希已更新；没有将这些依赖的代码或二进制复制到项目包。七张截图来自项目自身界面，原图和科研数值集的范围另见截图说明及 BST 数据许可。

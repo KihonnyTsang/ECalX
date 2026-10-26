@@ -25,68 +25,13 @@ def reference_csv(monkeypatch):
     return path
 
 
-def open_bst(tmp_path, monkeypatch, entry='app.py'):
-    import ecalx_local
-    monkeypatch.setattr(ecalx_local, 'STORAGE', tmp_path/'tasks')
-    at = AppTest.from_file(str(ROOT/entry)).run(timeout=20)
-    assert not at.exception
-    at.radio(key='main_navigation').set_value('BST电卡插值').run()
-    assert not at.exception
-    return at
-
-
-def has_result(at):
-    return any('ΔT插值估计' in h.value or 'ΔT文献原始读图值' in h.value for h in at.subheader)
-
-
 def test_packaged_numerics_and_supplied_reference(reference_csv):
     model = load_interpolator()
     assert model.__class__.__module__ == 'ecalx_local.bst_interpolate'
     assert load_interpolator(reference_csv.read_bytes()).curves == model.curves
     point = model.predict('0.20', '323', '30')
     assert point['delta_T_magnitude_K'] == pytest.approx(1.539950495049505)
-    assert result_heading(point) == 'ΔT插值估计：约1.54 K'
-
-
-@pytest.mark.parametrize('entry', ['app.py', 'ecalx_local/app.py'])
-def test_real_shell_example_and_three_kinds(tmp_path, monkeypatch, entry, reference_csv):
-    at = open_bst(tmp_path, monkeypatch, entry)
-    assert at.subheader[0].value == 'ΔT插值估计：约1.54 K'
-    assert any('结果类型：组成插值' == x.value for x in at.markdown)
-    rows = at.table[0].value.to_dict('records')
-    assert [r['参考组成 x'] for r in rows] == ['0.15', '0.25']
-    assert [r['当前温度取值方式'] for r in rows] == ['文献原始读图值', '温度插值']
-    assert [r['图号'] for r in rows] == ['图8B', '图8C']
-    assert len(at.table[1].value) == 3
-    at.text_input(key='bst_x').set_value('0.15').run()
-    assert at.subheader[0].value == 'ΔT文献原始读图值：约1.43 K'
-    at.text_input(key='bst_temperature').set_value('300').run()
-    assert any(x.value == '结果类型：温度插值' for x in at.markdown)
-    assert not at.exception
-
-
-def test_no_stale_value_or_chart_after_unsupported_input(tmp_path, monkeypatch, reference_csv):
-    at = open_bst(tmp_path, monkeypatch)
-    for x, t, e in [
-        ('0.049999999', '323', '30'), ('0.350000001', '323', '30'),
-        ('0.20', '242.999999', '30'), ('0.20', '402.900001', '30'),
-        ('0.20', '323', '15'), ('0.20', '323', '30.000001'),
-        ('0.20', '323', '-30'), ('NaN', '323', '30'),
-        ('0.20', 'Infinity', '30'), ('0.20', '323', 'abc'),
-    ]:
-        at.text_input(key='bst_x').set_value(x)
-        at.text_input(key='bst_temperature').set_value(t)
-        at.text_input(key='bst_field').set_value(e).run()
-        assert not at.exception and at.warning and '不支持此输入' in at.warning[0].value
-        assert not has_result(at) and not at.table
-        assert not any('vega' in node.type for node in at)
-    at.text_input(key='bst_x').set_value('0.20')
-    at.text_input(key='bst_field').set_value('30')
-    for t in ['243', '402.9']:
-        at.text_input(key='bst_temperature').set_value(t).run()
-        assert not at.exception and not at.warning and has_result(at)
-    at.text_input(key='bst_temperature').set_value('').run()
-    assert at.info and not has_result(at) and not at.table
+    assert result_heading(point) == 'ΔT 插值估计：约 1.54 K'
 
 
 def test_chart_preserves_nodes_and_contains_only_safe_display_data(reference_csv):
@@ -110,48 +55,106 @@ def test_chart_preserves_nodes_and_contains_only_safe_display_data(reference_csv
         assert not any(token in json.dumps(spec) for token in ['source_pdf_path', 'original_workspace_csv', 'Dai_Fig8_original.png'])
 
 
-def test_other_research_conditions_and_draft_survive_bst_navigation(tmp_path, monkeypatch, reference_csv):
-    at = open_bst(tmp_path, monkeypatch)
-    at.radio(key='main_navigation').set_value('研究与历史').run()
-    at.text_area(key='home_question').set_value('研究含Zr的BZT陶瓷')
-    at.text_input(key='home_edelta').set_value('100')
-    next(b for b in at.button if b.label == '检查研究条件').click().run()
-    prepared = deepcopy(at.session_state['prepared'])
-    assert prepared['goals']['delta_E_kV_cm'] == 100
-    at.radio(key='main_navigation').set_value('BST电卡插值').run()
-    at.text_input(key='bst_field').set_value('100').run()
-    assert at.warning and not has_result(at)
-    at.radio(key='main_navigation').set_value('研究与历史').run()
-    assert not at.exception and at.session_state['prepared'] == prepared
-    at.radio(key='main_navigation').set_value('BST电卡插值').run()
-    assert at.text_input(key='bst_field').value == '100'
-    assert not list((tmp_path/'tasks').glob('*/task.json'))
 
-
-def test_missing_or_invalid_data_only_disables_bst(tmp_path, monkeypatch):
-    monkeypatch.delenv('ECALX_BST_REFERENCE_CSV', raising=False)
-    at = open_bst(tmp_path, monkeypatch)
-    assert at.warning and '尚未提供参考数据' in at.warning[0].value and not has_result(at)
-    monkeypatch.setenv('ECALX_BST_REFERENCE_CSV', str(tmp_path/'absent-private-directory.csv'))
-    at.run()
-    assert not at.exception and at.warning and not has_result(at)
-    assert str(tmp_path) not in at.warning[0].value
-    local = tmp_path/'invalid.csv'
-    local.write_bytes(b'observation_id,temperature_K\nTEST_ONLY,323\n')
-    monkeypatch.setenv('ECALX_BST_REFERENCE_CSV', str(local))
-    at.run()
-    assert not at.exception and at.warning and not has_result(at)
-    at.radio(key='main_navigation').set_value('研究与历史').run()
-    assert not at.exception and any(b.label == '检查研究条件' for b in at.button)
-    with pytest.raises(BSTUnavailable):
-        load_interpolator(b'invalid upload overrides even a configured path')
-
-
-def test_bst_deep_link(tmp_path, monkeypatch, reference_csv):
+def open_workbench(tmp_path, monkeypatch, entry='app.py'):
     import ecalx_local
     monkeypatch.setattr(ecalx_local, 'STORAGE', tmp_path/'tasks')
-    at = AppTest.from_file(str(ROOT/'app.py'))
+    at = AppTest.from_file(str(ROOT/entry)).run(timeout=20)
+    assert not at.exception
+    assert not any(b.label=='BST电卡插值' for b in at.button)
+    return at
+
+
+def fill_conditions(at, formula='Ba0.8Sr0.2TiO3', t='323', field='30'):
+    at.text_input(key='home_composition').set_value(formula)
+    at.text_input(key='home_tmin').set_value(t)
+    at.text_input(key='home_tmax').set_value(t)
+    at.selectbox(key='home_tunit').set_value('K')
+    at.text_input(key='home_edelta').set_value(field).run()
+    assert not at.exception
+    return at
+
+
+def click(at, label):
+    next(b for b in at.button if b.label == label).click().run(timeout=20)
+    assert not at.exception
+
+
+@pytest.mark.parametrize('entry', ['app.py', 'ecalx_local/app.py'])
+def test_workbench_without_upload_and_saved_history(tmp_path, monkeypatch, entry, reference_csv, isolation):
+    from ecalx_local.bst_reference import import_reference
+    from ecalx_local.engine import LocalAgent, LocalWorkflow
+    from ecalx_local.presentation import report_markdown
+    import_reference(reference_csv.read_bytes(), isolation)
+    monkeypatch.delenv('ECALX_BST_REFERENCE_CSV')
+    at = fill_conditions(open_workbench(tmp_path, monkeypatch, entry))
+    assert any(b.label=='计算电卡温变' for b in at.button)
+    assert not at.get('file_uploader')
+    click(at, '计算电卡温变')
+    assert any(h.value == 'ΔT 插值估计：约 1.54 K' for h in at.subheader)
+    assert [r['参考组成 x'] for r in at.table[0].value.to_dict('records')] == ['0.15', '0.25']
+    click(at, '开始研究')
+    at.checkbox(key='home_confirmed').set_value(True).run()
+    click(at, '确认并开始研究')
+    tid = at.session_state['task_id']
+    agent = LocalAgent(tmp_path/'tasks')
+    task = agent.get(tid)
+    assert task['literature_results'][0]['point']['delta_T_magnitude_K'] == pytest.approx(1.539950495049505)
+    assert not agent.tools.repository.records()  # Literature never enters experiments.
+    assert '文献曲线插值' in report_markdown(task)
+    assert not at.get('file_uploader')
+    # Finish the existing offline toolchain; worker saves retain the local receipt.
+    from ecalx_local.jobs import worker_status
+    import time
+    for _ in range(80):
+        task = agent.get(tid)
+        if task['plan'] and worker_status(tid, agent.storage_root)['state'] != 'running':
+            break
+        time.sleep(.05)
+    agent.confirm_plan(tid, confirmed=True)
+    done = agent.run_until_wait(tid, LocalWorkflow())
+    assert done['status'] == 'COMPLETED'
+    assert done['literature_results'] == task['literature_results']
+    fresh = AppTest.from_file(str(ROOT/entry))
+    fresh.query_params['task'] = tid
+    fresh.run(timeout=20)
+    assert not fresh.exception
+    assert any('约 1.54 K' in h.value for h in fresh.subheader)
+    assert any('已随研究历史保存' in c.value for c in fresh.caption)
+    assert not (isolation/'api_usage.sqlite3').exists()
+
+
+def test_no_stale_result_and_non_bst_remains_free(tmp_path, monkeypatch, reference_csv):
+    at = fill_conditions(open_workbench(tmp_path, monkeypatch))
+    click(at, '计算电卡温变')
+    assert any('约 1.54 K' in h.value for h in at.subheader)
+    for formula, t, e in [('Ba0.8Sr0.2TiO3','403','30'), ('Ba0.8Sr0.2TiO3','323','15'),
+                           ('Ba0.96Sr0.04TiO3','323','30'), ('PbZr0.52Ti0.48O3','323','100')]:
+        fill_conditions(at, formula, t, e)
+        assert not any('ΔT 插值估计' in h.value for h in at.subheader)
+        assert not at.table and not any('vega' in node.type for node in at)
+        assert any(b.label == '开始研究' and not b.disabled for b in at.button)
+    click(at, '开始研究')
+    prepared = deepcopy(at.session_state['prepared'])
+    assert prepared['goals']['delta_E_kV_cm'] == 100
+    assert not prepared.get('literature_results')
+    assert any(b.label == '确认并开始研究' for b in at.button)
+
+
+def test_missing_data_only_disables_interpolation(tmp_path, monkeypatch):
+    monkeypatch.delenv('ECALX_BST_REFERENCE_CSV', raising=False)
+    at = fill_conditions(open_workbench(tmp_path, monkeypatch))
+    assert any(b.label=='设置 → 数据库构建' for b in at.button)
+    assert not any('ΔT 插值估计' in h.value for h in at.subheader)
+    click(at, '开始研究')
+    assert any(b.label == '确认并开始研究' for b in at.button)
+    with pytest.raises(BSTUnavailable):
+        load_interpolator(b'invalid upload')
+
+
+def test_legacy_bst_link_opens_unrestricted_workbench(tmp_path, monkeypatch):
+    at = open_workbench(tmp_path, monkeypatch)
     at.query_params['view'] = 'bst'
-    at.run(timeout=20)
-    assert not at.exception and at.radio(key='main_navigation').value == 'BST电卡插值'
-    assert has_result(at)
+    at.run()
+    assert not at.exception and at.session_state['main_navigation'] == '研究与历史'
+    assert any(b.label == '开始研究' for b in at.button)

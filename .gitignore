@@ -20,3 +20,5 @@ my-private-config/
 # Local manuscript originals and unresolved extraction drafts
 raw/
 paper_drafts/
+reference_datasets/
+private-workspace/

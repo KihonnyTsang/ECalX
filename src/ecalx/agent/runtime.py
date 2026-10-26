@@ -49,6 +49,9 @@ class ResearchAgent(Store):
         with self.connect() as db:
             row=db.execute('SELECT payload FROM research_tasks WHERE id=?',(task['id'],)).fetchone()
             current=json.loads(row[0]) if row else {}
+            # Preserve locally attached literature receipts across worker saves.
+            if current.get('literature_results'):
+                task['literature_results'] = current['literature_results']
             if current.get('status') == 'FAILED' and current.get('client_mode') == 'LIVE_LLM':
                 if current != redact(task):
                     raise ExperimentError('真实API失败记录不可改写；需独立新任务和项目策略检查')

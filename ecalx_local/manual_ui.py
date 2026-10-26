@@ -43,7 +43,7 @@ def manual_entry(workspace=None):
 
 def _manual_entry(workspace=None):
     root = workspace or SCIENCE_ROOT
-    st.caption('逐条保存到同一本机数据库。选填数值留空即为未提供；来源及测量定义按你提供的内容保留。')
+    st.caption('填写实验数值与来源，预览核对后保存。')
     values = {}
     def text(key, label, **kwargs):
         values[key] = st.text_input(label, key='manual_'+key, **kwargs)
@@ -91,7 +91,7 @@ def _manual_entry(workspace=None):
         choice('field_path', '加载 / 撤场分支', ['unknown','loading','unloading'],
                {'unknown':'未知','loading':'加载','unloading':'撤场'})
         text('sign_convention', '来源的 ΔT 符号说明', placeholder='可留空；例如 T_after − T_before')
-    st.caption('录入后可用于本地检索。来源尚未独立核验，仍不提供正式性能预测或排名。')
+    st.caption('未提供的字段留空。')
     content = manual_content(values)
     if st.form_submit_button('预览并校验这条记录', type='primary'):
         _, prepared = preview_manual(values)
@@ -111,7 +111,7 @@ def _manual_entry(workspace=None):
         for warning in prepared['warnings']:
             st.warning(warning['message'])
         if not prepared['errors']:
-            st.success('校验通过。缺失字段保持空缺，直接法与间接法分别保留。')
+            st.success('校验通过，请核对后保存。')
             st.caption('只有点击“确认保存这条记录”才写入数据库。')
         if st.form_submit_button('确认保存这条记录', disabled=bool(prepared['errors']) or not prepared['records']):
             try:

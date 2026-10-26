@@ -101,6 +101,8 @@ def test_reports_seed_coverage_and_ui_use_reported_data(isolation,tmp_path,monke
     at=AppTest.from_file(str(ROOT/'app.py')).run(timeout=20)
     at.session_state.task_id=done['id'];at.run()
     assert not at.exception
+    # Evidence is now computed only when its tab is selected.
+    at.session_state['result_tab_'+done['id']]='文献依据';at.run()
     assert any(m.label=='符合 ΔE 的记录' and m.value=='5' for m in at.metric)
     assert any('有效原文报告数据' in m.value for m in at.markdown)
     assert json.dumps(a.get(done['id']),sort_keys=True)==frozen

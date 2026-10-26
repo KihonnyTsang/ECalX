@@ -41,14 +41,20 @@ def create_research(prepared, mode, *, confirmed=False, consent=None, storage=No
             raise ValueError('来源研究已变化，请重新核对新任务草稿')
     engine = LocalAgent(storage)
     identity = live_identity() if mode=='live' else LocalWorkflow()
-    task = engine.create_task(prepared['raw'].get('natural_language', ''),
-                              identity, budget=identity.budget if mode=='live' else BUDGET)
+    original = prepared['raw'].get('natural_language', '')
+    if prepared['raw'].get('composition') and prepared['raw']['composition'] not in original:
+        original = (original+'\n研究组成：'+prepared['raw']['composition']).strip()
+    task = engine.create_task(original,
+                              identity, budget=identity.budget if mode=='live' else (BUDGET.model_copy(update={'llm_requests':24}) if prepared.get('allowed_elements') else BUDGET))
     engine.establish_goals(task['id'], prepared['goals'], confirmed=True)
     task = engine.get(task['id'])
     task['input_snapshot'] = prepared
     task['online_consent'] = consent if mode=='live' else None
     task['app_mode'] = mode
     task['optional_preferences'] = prepared['pending']
+    from .bst_research import signature
+    task['literature_results'] = [result for result in prepared.get('literature_results', [])
+                                  if result['input_sha256'] == signature(prepared)]
     if parent:
         task['parent_research'] = {'task_id':parent['id'], 'snapshot_sha256':prepared['parent_sha256']}
     engine.save(task)
@@ -62,10 +68,13 @@ def launch(tid, storage=None):
     if task['status'] not in {'DRAFT','RUNNING'} or (task['status']=='DRAFT' and task['plan']):
         return
     # Worker performs its own nonblocking lease; double clicks cannot double-send.
-    subprocess.Popen([sys.executable, '-m', 'ecalx_local.worker', tid, str(engine.storage_root)],
+    process=subprocess.Popen([sys.executable, '-m', 'ecalx_local.worker', tid, str(engine.storage_root)],
                      cwd=APP_ROOT, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, start_new_session=True,
                      env={**os.environ, 'PYTHONDONTWRITEBYTECODE':'1'})
+    # Reap completed workers without blocking the Streamlit script thread.
+    from threading import Thread
+    Thread(target=process.wait,daemon=True,name='ecalx-worker-'+tid).start()
 
 
 def worker_status(tid, storage=None):

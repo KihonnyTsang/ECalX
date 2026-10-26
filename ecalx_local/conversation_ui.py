@@ -135,15 +135,15 @@ def render_turn(task, turn):
         if turn['status']=='NEEDS_NEW_TASK' and st.button('打开新任务草稿',key='draft_'+turn['id']):
             stage_draft(task,turn['draft'])
             st.rerun()
-        with st.expander('高级详情 · 本轮来源与只读收据'):
+        with st.expander('本轮来源与记录'):
             st.json(turn)
 
 
 def conversation_panel(task, storage):
     tid=task['id']
     conversation=Conversation(storage)
-    st.subheader('研究对话')
-    st.caption('围绕当前结果继续讨论。调整温区、电场或元素将进入新研究草稿，确认后才创建。')
+    st.subheader('追问研究结果')
+    st.caption('修改研究条件时，将核对并创建新的研究。')
     history=conversation.history(tid)
     if history:
         for turn in history:

@@ -123,7 +123,7 @@ def test_database_page_has_third_entry(isolation):
     next(b for b in at.button if b.label=='设置').click().run()
     next(b for b in at.button if b.label=='数据库构建').click().run()
     assert not at.exception
-    assert [t.label for t in at.tabs]==['批量导入现有数据','手动录入实验数据','论文数据自动提取']
+    assert [t.label for t in at.tabs]==['文件上传','实验数据录入','论文数据提取','参考曲线']
     assert next(b for b in at.button if b.label=='提取论文数据').disabled
 
 

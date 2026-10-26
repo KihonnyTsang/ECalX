@@ -1,50 +1,107 @@
 {
-  "scope": "v0.2.0-beta.2 release candidate",
-  "version": "0.2.0b2",
-  "target_tag": "v0.2.0-beta.2",
-  "github_main_and_beta1": "ca5850e877f18e64a42533f8f9a497a4238c6308",
-  "prior_182_test_record": {
-    "preserved": true,
-    "sha256": "5e2ee5a3daba12e2c8a5f92c5ba3e9b6ded0e81095bc8bb08fa790de3497c02c"
-  },
-  "current_tests": {
-    "passed": 182,
+  "scope": "v0.2.0-beta.3 local release candidate",
+  "version": "0.2.0b3",
+  "target_tag": "v0.2.0-beta.3",
+  "public_main_base": "c5cb28783f299ec9f26c45b1adde4e11d22b484d",
+  "full_regression": {
+    "passed": 210,
     "failed": 0,
+    "errors": 0,
     "skipped": 0,
-    "legal_local_reference_explicitly_supplied": true
+    "junit_sha256": "d192e35b8133ef0a73d478b53dcd41fde21990e5aab9c091fa4aaad12e3e07b0",
+    "authorized_local_reference_supplied": true
   },
-  "fresh_installations": {
-    "source": true,
-    "wheel": true,
-    "system_site_packages": false,
-    "pip_check_passed": true,
+  "without_reference": {
+    "passed": 187,
+    "failed": 0,
+    "skipped": 23,
+    "skip_reason": "Frozen reference values not distributed"
+  },
+  "fresh_installation": {
     "python": "3.11.16",
-    "streamlit": "1.66.0",
     "platform": "macOS ARM64",
-    "dependencies_reused_via_pip_wheel_cache_only": true
+    "streamlit": "1.66.1",
+    "system_site_packages": false,
+    "README_pip_install_completed": true,
+    "pip_check_passed": true
   },
-  "installed_interface_checks": {
-    "method": "Streamlit AppTest on installed package with source access and network blocked",
-    "version_display": true,
-    "missing_data_refused": true,
-    "blank_template_refused": true,
-    "template_packaged": true,
-    "template_fields": 43,
-    "example_after_valid_data": "ΔT插值估计：约1.54 K",
-    "temperature_402_900001_refused": true,
-    "old_result_removed": true
+  "installed_workflow": {
+    "version": "0.2.0b3",
+    "imports_from_site_packages": true,
+    "cwd_outside_checkout": true,
+    "chemical_checks": 10,
+    "simulation_candidates": 5,
+    "EI_rounds": 3,
+    "literature_points_available": 5,
+    "delta_t_K": 1.1502485148514852,
+    "no_reference_returns_no_delta_t": true,
+    "BYO_model_status": "UNAVAILABLE",
+    "runtime_matches_source": true,
+    "paid_API_calls": 0
   },
-  "installed_cli": {
-    "local_http_health": 200,
-    "terminated_after_check": true
+  "browser": {
+    "actual_installed_CLI": true,
+    "CSV_imported_records": 3,
+    "reference_imported_and_verified": true,
+    "generated_candidates": 10,
+    "independent_chemical_checks": 10,
+    "M4_accepted": 5,
+    "M4_out_of_domain": 5,
+    "EI_rounds": 3,
+    "candidate_details_and_pagination": true,
+    "history_reopened": true,
+    "report_page": true,
+    "real_Markdown_and_JSON_downloads": true,
+    "BST_calculation_and_lazy_curve": true,
+    "API_settings_without_key": true,
+    "narrow_sidebar_toggle_fixed": true,
+    "seven_screenshots_recaptured": true,
+    "console_errors": [],
+    "navigation_observations": [
+      {
+        "page": "生成与校验",
+        "elapsed_ms": 298,
+        "text_chars": 0
+      },
+      {
+        "page": "模拟计算",
+        "elapsed_ms": 304,
+        "text_chars": 137
+      },
+      {
+        "page": "评价与排序",
+        "elapsed_ms": 285,
+        "text_chars": 122
+      },
+      {
+        "page": "研究结果",
+        "elapsed_ms": 283,
+        "text_chars": 530
+      },
+      {
+        "page": "报告与依据",
+        "elapsed_ms": 285,
+        "text_chars": 266
+      }
+    ],
+    "timing_limit": "Automation-observed panel switching, not a general performance benchmark"
   },
-  "bst_code_unchanged_from_prior_candidate": "AST identical; trailing blank line removed only",
-  "reference_data_pdf_or_original_images_bundled": false,
-  "data_license_status": "redistribution unconfirmed; explicit user-supplied matching data only",
-  "new_models": 0,
-  "training_runs": 0,
-  "paid_api_calls": 0,
-  "git_push_performed": false,
-  "github_release_performed": false,
-  "beta2_tag_created": false
+  "personal_model_probe": {
+    "real_existing_inferences": 4,
+    "boundary_rejections": 12,
+    "new_training": false,
+    "network_blocked": true,
+    "target": "source_reported_delta_T_K",
+    "independent_final_external_validation": false,
+    "private_artifacts_distributed": false
+  },
+  "protected_original_files": {
+    "checked": 145,
+    "changed": 0
+  },
+  "new_scientific_models": 0,
+  "paid_API_calls": 0,
+  "push_performed": false,
+  "release_created": false,
+  "deployment_performed": false
 }

@@ -21,9 +21,8 @@ LABELS={**FIELDS,'selected':'选择保存','candidate_id':'候选编号','page':
 
 
 def paper_import(workspace):
-    st.subheader('论文数据自动提取')
-    st.caption('本地离线解析正文、表格和图注。每篇最多 20 MB、100 页；每批最多 200 篇、合计 500 MB。')
-    st.info('PDF 和证据只保存在本机，不调用付费 API。引用数据单独保存为线索，不写入当前论文实验结果。')
+    st.subheader('论文数据提取')
+    st.caption('本地解析 PDF · 每篇最多 20 MB / 100 页 · 每批最多 200 篇 / 500 MB')
     if PERSONAL:
         st.warning('论文 MVP 请使用 BYO 开发工作区。此入口在个人模式禁用，避免改动原科研数据库。')
         return
@@ -86,7 +85,7 @@ def paper_import(workspace):
                 'missing':'、'.join(FIELDS.get(k,k) for k in row['missing']),
                 'warnings':'；'.join(row['warnings'])})
         if rows:
-            st.caption('左右滚动可编辑数值、单位、方法、样品和 DOI。字段留空即 null。先勾选要保存的行，再核对下方原文。')
+            st.caption('左右滚动可编辑数值、单位、方法、样品和 DOI。未提供的字段留空。先勾选要保存的行，再核对下方原文。')
             configs={key:st.column_config.TextColumn(LABELS.get(key,key)) for key in EDIT_FIELDS}
             configs.update(selected=st.column_config.CheckboxColumn('选择保存'),
                 ownership=st.column_config.TextColumn('数据归属'),
@@ -163,7 +162,7 @@ def paper_import(workspace):
     if st.session_state.get('paper_saved') and st.session_state.get('paper_saved_signature')==review_signature:
         logs=st.session_state.paper_saved
         st.success(f"已保存 {sum(l['inserted'] for l in logs if not l.get('already_imported'))} 条新记录；重复记录不再新增。可在下方“检索本机材料记录”中按化学式、DOI 或文件名检索。")
-        st.caption('PDF 原件、来源和导入版本保存在当前本机工作区；没有启用模型训练、性能预测或 GitHub 发布。')
+        st.caption('PDF、来源与导入记录已保存在本机。')
         reason=st.text_input('撤销本次论文导入的原因',key='paper_revoke_reason')
         if st.button('撤销本次论文导入',disabled=not reason.strip(),key='paper_revoke'):
             for log in logs:revoke_paper_import(workspace,log['import_id'],reason)

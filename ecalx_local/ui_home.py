@@ -1,4 +1,5 @@
 """Research entry and confirmation: UI only, original goals and budget gates."""
+from contextlib import nullcontext
 import streamlit as st
 from . import PERSONAL
 from .inputs import prepare_inputs, goals_summary
@@ -7,7 +8,7 @@ from .engine import online_quote
 from .preflight import readonly_preflight
 from .conditions import SEMANTICS
 from .jobs import create_research, launch
-from .ui import section_header, protocol_label, protocol_summary
+from .ui import section_header, protocol_label, protocol_summary, input_error
 from .field_protocol import CHOICES
 
 
@@ -29,73 +30,97 @@ def use_example(text):
 
 
 def home(storage):
+    section_header('', '材料研究')
     if st.session_state.get('prepared'):
-        section_header('确认研究条件', '核对后，开始这次研究', '开始后将保存本次条件，修改条件会创建新的研究。')
+        st.subheader('确认研究条件')
         review_conditions(storage)
         return
-    st.markdown('<div class="home-top"></div>', unsafe_allow_html=True)
-    section_header('ECALX · 材料研究工作台', '今天想研究什么材料？',
-                   '从一个问题出发，沿着文献证据探索新的电卡材料。')
-    with st.container(border=True):
-        with st.container():
-            natural = st.text_area('研究问题', key='home_question', label_visibility='collapsed',
-                placeholder='描述你的研究想法，例如：探索有潜力的无铅电卡材料，并说明候选依据…', height=160)
-            st.caption('研究条件全部选填，留空表示未指定。')
-            a,b,c = st.columns([1,1,.8])
-            tmin = a.text_input('最低温度', placeholder='如 -20.5', key='home_tmin')
-            tmax = b.text_input('最高温度', placeholder='如 80', key='home_tmax')
-            tunit = c.selectbox('温度单位', ['°C','K'], key='home_tunit')
-            edelta = st.text_input('电场变化幅度 ΔE（kV/cm）', placeholder='可留空；输入任意正数，如 20 或 12.5', key='home_edelta')
-            st.caption('ΔE 表示电场变化幅度；如需指定起点和终点，请展开高级电场条件。')
-            exclude = st.text_input('排除元素', placeholder='例如 Pb；多个元素用逗号或空格分隔', key='home_exclude')
-            with st.expander('高级电场条件', expanded=False):
-                st.caption('仅在需要明确场路径、场强范围或具体协议时填写。与研究问题冲突时，请确认并修改后重新核对。')
-                funit = st.selectbox('高级电场单位', ['kV/cm','kV/mm','MV/m'], key='home_funit')
-                a,b = st.columns(2)
-                estart = a.text_input('电场起点', placeholder='可留空，不补 0', key='home_estart')
-                eend = b.text_input('电场终点', placeholder='可留空', key='home_eend')
-                emin = a.text_input('电场下限', placeholder='可留空', key='home_emin')
-                emax = b.text_input('最大场强上限', placeholder='可留空；与 ΔE 分别核对', key='home_emax')
-                protocol = st.selectbox('加电方式', CHOICES, format_func=protocol_label, key='home_protocol')
-                peak = st.text_input('实际拟施加峰值电场（常用脉冲）', placeholder='单独填写，不使用上限或 ΔE 代填', key='home_peak')
-                st.caption('常用脉冲仅作为本次研究的参考，仍需核对文献实际使用的加电方式。')
-                st.caption(SEMANTICS)
-            with st.expander('研究方式 · 默认本地研究'):
-                selected_mode = st.radio('研究方式', ['本地研究 · 无需联网','DeepSeek · 在线研究'],
-                    horizontal=True, key='home_mode')
-                st.caption('本地研究使用已导入的资料；在线研究使用 DeepSeek，开始前需确认用量与发送内容。')
-            submitted = st.button('检查研究条件', type='primary', use_container_width=True)
-        raw = {'natural_language':natural,'temperature_min':tmin,'temperature_max':tmax,'temperature_unit':tunit,
-               'e_delta':edelta,'e_delta_unit':'kV/cm','field_kind':'起点 → 终点','field_unit':funit,
-               'e_start':estart,'e_end':eend,'e_min':emin,'e_max':emax,'exclude':exclude,
-               'field_protocol':protocol,'e_peak':peak}
-        signature = [raw,selected_mode]
-        if submitted:
-            # Every new review invalidates old confirmation, including identical inputs.
-            st.session_state['home_confirmed'] = False
-            st.session_state['home_paid'] = False
-            try:
-                st.session_state.prepared = prepare_inputs(raw)
-                st.session_state.review_signature = signature
-                st.session_state.research_mode = 'live' if selected_mode.startswith('DeepSeek') else 'local'
-                st.rerun()
-            except ValueError as error:
-                st.session_state.pop('prepared',None)
-                st.error('条件冲突：请确认自然语言与高级条件的真实要求，修改后重新核对。' + str(error) if '冲突' in str(error) or '矛盾' in str(error) else str(error))
-    st.caption('试试一个研究方向，或直接写下你的想法')
-    a,b = st.columns(2)
-    a.button('探索无铅电卡材料',use_container_width=True,on_click=use_example,
-             args=('探索有研究潜力的无铅电卡材料，并说明候选组成的依据。',))
-    b.button('梳理材料的文献依据',use_container_width=True,on_click=use_example,
-             args=('梳理电卡材料的文献依据，说明实验条件和现有研究缺口。',))
-    st.markdown('<div class="home-foot"><span>准备资料</span><span>确认条件</span><span>查看候选</span></div>',unsafe_allow_html=True)
+    # Validate cached results against the same current inputs before giving
+    # results priority. Editing any field invalidates the previous result.
+    keys={'natural_language':'question','composition':'composition','temperature_min':'tmin',
+          'temperature_max':'tmax','temperature_unit':'tunit','field_unit':'funit',
+          'e_delta':'edelta','e_start':'estart','e_end':'eend','e_min':'emin','e_max':'emax',
+          'exclude':'exclude','allowed_elements':'allowed','field_protocol':'protocol','e_peak':'peak'}
+    raw_before={field:st.session_state.get('home_'+key, '') for field,key in keys.items()}
+    raw_before.update(temperature_unit=raw_before['temperature_unit'] or '°C',
+                      field_unit=raw_before['field_unit'] or 'kV/cm',
+                      field_protocol=raw_before['field_protocol'] or CHOICES[0],
+                      e_delta_unit='kV/cm',field_kind='起点 → 终点')
+    cached=st.session_state.get('literature_draft')
+    show_result=False
+    if cached:
+        try:
+            from .bst_research import signature
+            show_result=cached['input_sha256']==signature(prepare_inputs(raw_before))
+        except ValueError:
+            pass
+    if show_result:
+        from .bst_ui import render_result
+        render_result(cached)
+    editor=st.expander('编辑研究问题与条件',expanded=False) if show_result else nullcontext()
+    with editor:
+        with st.container(key='research_inputs'):
+            natural=st.text_area('研究问题',key='home_question',label_visibility='collapsed',
+                placeholder='输入研究问题，或在下方填写材料与研究条件…',height=108)
+            st.subheader('研究条件')
+            a,b=st.columns([2,1])
+            composition=a.text_input('材料组成',placeholder='如 Ba0.8Sr0.2TiO3',key='home_composition')
+            exclude=b.text_input('排除元素',placeholder='选填，如 Pb',key='home_exclude')
+            allowed=st.text_input('允许使用的元素',placeholder='选填，如 Ba、Sr、Ca、Ti、O；每个候选可只使用其中一部分',key='home_allowed')
+            if allowed.strip():
+                st.caption('组成搜索：同价位点替代，5%–25% 工程网格；不代表可合成范围。')
+            a,b,c,d=st.columns([1,1,.75,1.45])
+            tmin=a.text_input('温度下限',placeholder='不限',key='home_tmin')
+            tmax=b.text_input('温度上限',placeholder='不限',key='home_tmax')
+            tunit=c.selectbox('温度单位',['°C','K'],key='home_tunit')
+            edelta=d.text_input('电场变化 ΔE（kV/cm）',placeholder='选填',key='home_edelta')
+            with st.expander('高级条件',expanded=False):
+                a,b=st.columns(2)
+                funit=a.selectbox('电场单位',['kV/cm','kV/mm','MV/m'],key='home_funit')
+                protocol=b.selectbox('加电方式',CHOICES,format_func=protocol_label,key='home_protocol')
+                estart=a.text_input('电场起点',placeholder='未指定',key='home_estart')
+                eend=b.text_input('电场终点',placeholder='未指定',key='home_eend')
+                emin=a.text_input('电场下限',placeholder='未指定',key='home_emin')
+                emax=b.text_input('电场上限',placeholder='未指定',key='home_emax')
+                peak=st.text_input('实际峰值电场（常用脉冲）',placeholder='按实际条件填写',key='home_peak')
+                st.caption('起点、终点、峰值与上限分别填写；不使用 ΔE 代填。')
+                selected_mode=st.radio('研究方式',['本地研究 · 无需联网','DeepSeek · 在线研究'],
+                                       horizontal=True,key='home_mode')
+                st.caption('在线研究开始前需确认用量与发送内容。')
+            a,b=st.columns([1,2],vertical_alignment='center')
+            submitted=a.button('开始研究',type='primary',use_container_width=True)
+            b.caption('条件选填，留空表示未指定。')
+    raw={'natural_language':natural,'composition':composition,'temperature_min':tmin,'temperature_max':tmax,
+         'temperature_unit':tunit,'e_delta':edelta,'e_delta_unit':'kV/cm','field_kind':'起点 → 终点',
+         'field_unit':funit,'e_start':estart,'e_end':eend,'e_min':emin,'e_max':emax,'exclude':exclude,'allowed_elements':allowed,
+         'field_protocol':protocol,'e_peak':peak}
+    signature=[raw,selected_mode]
+    prepared=None
+    try:
+        prepared=prepare_inputs(raw)
+    except ValueError:
+        pass
+    if prepared is not None:
+        from .bst_ui import research_tool
+        research_tool(prepared,show_cached=not show_result)
+    if submitted:
+        st.session_state['home_confirmed']=False
+        st.session_state['home_paid']=False
+        try:
+            st.session_state.prepared=prepared if prepared is not None else prepare_inputs(raw)
+            st.session_state.review_signature=signature
+            st.session_state.research_mode='live' if selected_mode.startswith('DeepSeek') else 'local'
+            st.rerun()
+        except ValueError as error:
+            st.session_state.pop('prepared',None)
+            st.error(input_error(error))
 
 
 def edit_conditions():
     raw,mode=st.session_state.review_signature
-    keys={'natural_language':'question','temperature_min':'tmin','temperature_max':'tmax',
+    keys={'natural_language':'question','composition':'composition','temperature_min':'tmin','temperature_max':'tmax',
           'temperature_unit':'tunit','field_unit':'funit',
-          'e_start':'estart','e_end':'eend','e_min':'emin','e_max':'emax','exclude':'exclude','e_delta':'edelta',
+          'e_start':'estart','e_end':'eend','e_min':'emin','e_max':'emax','exclude':'exclude','allowed_elements':'allowed','e_delta':'edelta',
           'field_protocol':'protocol','e_peak':'peak'}
     for field,key in keys.items():
         if field in raw:
@@ -108,24 +133,30 @@ def edit_conditions():
 
 def review_conditions(storage):
     p = st.session_state.prepared
-    with st.chat_message('user'):
+    with st.container():
         st.write(research_title({'original':p['raw'].get('natural_language'), 'frozen_goals':p['goals']}))
     st.caption('本地研究 · 无需联网' if st.session_state.research_mode=='local' else 'DeepSeek · 需确认用量')
     with st.container(border=True):
-        st.subheader('本次生效的条件')
-        for line in goals_summary(p['goals']):
+        st.subheader('研究条件')
+        if p['raw'].get('composition'):
+            st.write('研究组成：'+p['raw']['composition'])
+        if p.get('allowed_elements'):
+            st.write('允许元素：'+'、'.join(p['allowed_elements']))
+        from .input_display import compact_conditions
+        for line in compact_conditions(p['goals']):
             st.write(line)
         if p['field_protocol'].get('kind') != 'unknown':
-            st.caption(protocol_summary(p['field_protocol']))
             with st.expander('高级详情 · 加电条件说明'):
                 from .field_protocol import protocol_lines
                 for line in protocol_lines(p['field_protocol']):
                     st.write(line)
         if p['pending']:
-            st.warning('以下内容将作为研究偏好；如需用于筛选，请返回补充明确条件。')
-            for item in p['pending']:
-                st.write('• '+item)
-        confirmed = st.checkbox('我确认以上条件，其余描述仅作研究偏好',key='home_confirmed')
+            with st.expander('研究偏好'):
+                for item in p['pending']:
+                    st.write(item.removeprefix('未解析文本：'))
+        from .bst_ui import research_tool
+        research_tool(p)
+        confirmed = st.checkbox('确认以上研究条件',key='home_confirmed')
         consent,ready = None,True
         if st.session_state.research_mode=='live':
             with st.expander('在线研究准备检查', expanded=True):
@@ -141,7 +172,7 @@ def review_conditions(storage):
             except Exception:
                 ready=False
                 st.warning('在线配置或本地预算当前不可用。未发起请求；可返回选择本地方式。')
-        if st.button('开始研究',type='primary',disabled=not(confirmed and ready),use_container_width=True):
+        if st.button('确认并开始研究',type='primary',disabled=not(confirmed and ready),use_container_width=True):
             try:
                 task=create_research(p,st.session_state.research_mode,confirmed=True,consent=consent,storage=storage)
                 st.session_state.task_id=task['id']
@@ -149,5 +180,5 @@ def review_conditions(storage):
                 launch(task['id'],storage)
                 st.rerun()
             except ValueError as error:
-                st.error(str(error))
+                st.error(input_error(error))
     st.button('返回修改研究条件',on_click=edit_conditions)

@@ -1,4 +1,4 @@
-"""0.2.0b2 release gates: complete delta queries and truthful report UI."""
+"""0.2.0b3 release gates: complete delta queries and truthful report UI."""
 import json
 from pathlib import Path
 import tomllib
@@ -56,7 +56,7 @@ def test_imported_delta_through_real_toolchain(isolation, tmp_path, value):
 
 def test_release_version_and_auxiliary_evidence_downloads(isolation, tmp_path, monkeypatch):
     from ecalx import __version__
-    assert __version__ == tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['version'] == '0.2.0b2'
+    assert __version__ == tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['version'] == '0.2.0b3'
     assert (ROOT/'app.py').read_bytes() == (ROOT/'ecalx_local/app.py').read_bytes()
     raw = b'formula,e_delta,field_unit,url,data_kind\nBaTiO3,20,kV/cm,https://example.invalid/SYNTHETIC_TEST_DATA,SYNTHETIC_TEST_DATA\n'
     p = preview(raw, 'SYNTHETIC_TEST_DATA.csv', {k: k for k in ('formula', 'e_delta', 'field_unit', 'url', 'data_kind')})
@@ -72,10 +72,12 @@ def test_release_version_and_auxiliary_evidence_downloads(isolation, tmp_path, m
     app = AppTest.from_file(str(ROOT/'app.py')).run(timeout=20)
     app.session_state.task_id = task['id']; app.run()
     assert not app.exception
-    assert any('0.2.0b2' in c.value for c in app.caption)
+    assert any('<h1>材料研究</h1>' in m.value for m in app.markdown)
     assert not any('目标条件下无匹配实验依据' in e.value for e in app.error)
+    app.session_state['result_tab_'+task['id']]='文献依据';app.run()
     assert any('幅度' in w.value for w in app.warning)
-    # AppTest renders the actual download widgets and payload-bearing protos.
+    app.session_state['result_tab_'+task['id']]='报告与详情';app.run()
+    # Deferred download widgets are still available on the report tab.
     labels = [b.proto.label for b in app.get('download_button')]
-    assert '下载研究报告 · Markdown' in labels and '下载结构化结果 · JSON' in labels
+    assert '下载研究报告' in labels and '下载原始数据' in labels
     assert json.dumps(agent.get(task['id']), sort_keys=True) == before

@@ -36,3 +36,36 @@ def condition_lines(goals):
     if goals['maximize']:
         lines.append('研究偏好：尽可能大的 ΔT')
     return lines
+
+
+def compact_conditions(goals):
+    """Display only supplied conditions; preserve the full report formatter above."""
+    lines=[]
+    lo,hi=goals.get('temperature_min_K'),goals.get('temperature_max_K')
+    if lo is not None and hi is not None:
+        lines.append(f'温度：{lo:g} K' if lo==hi else f'温度：{lo:g}–{hi:g} K')
+    elif lo is not None:
+        lines.append(f'温度：≥ {lo:g} K')
+    elif hi is not None:
+        lines.append(f'温度：≤ {hi:g} K')
+    start,end=goals.get('e_start_kV_cm'),goals.get('e_end_kV_cm')
+    if start is not None and end is not None:
+        lines.append(f'电场：{start:g} → {end:g} kV/cm')
+    else:
+        for label,value in [('电场起点',start),('电场终点',end)]:
+            if value is not None:
+                lines.append(f'{label}：{value:g} kV/cm')
+    for label,key,unit in [('电场变化 ΔE','delta_E_kV_cm','kV/cm'),
+                           ('电场下限','e_min_kV_cm','kV/cm'),('电场上限','e_max_kV_cm','kV/cm')]:
+        if goals.get(key) is not None:
+            lines.append(f'{label}：{goals[key]:g} {unit}')
+    for label,key in [('排除元素','exclude_elements'),('包含元素','include_elements')]:
+        if goals.get(key):
+            lines.append(label+'：'+'、'.join(goals[key]))
+    if goals.get('material_type'):
+        lines.append('材料类型：'+goals['material_type'])
+    if goals.get('delta_t_K') is not None:
+        lines.append(f"ΔT 目标：{goals['delta_t_operator']} {goals['delta_t_K']:g} K")
+    if goals.get('maximize'):
+        lines.append('研究偏好：尽可能大的 ΔT')
+    return lines

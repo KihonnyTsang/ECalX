@@ -81,22 +81,22 @@ def test_form_delta_review_and_edit(tmp_path,monkeypatch):
     assert not app.exception
     assert app.text_input(key='home_edelta').value==''
     assert not any(s.label=='电场条件含义' for s in app.selectbox)
-    assert next(e for e in app.expander if e.label=='高级电场条件').proto.expanded is False
+    assert next(e for e in app.expander if e.label=='高级条件').proto.expanded is False
     app.text_input(key='home_edelta').set_value('12.5')
-    next(b for b in app.button if b.label=='检查研究条件').click().run()
+    next(b for b in app.button if b.label=='开始研究').click().run()
     assert not app.exception
     summary=app.session_state['prepared']['summary']
     assert summary[:3]==['温度范围：未指定 至 未指定','电场变化幅度 ΔE：12.5 kV/cm','排除元素：未指定']
     assert not any('起点' in s or '终点' in s for s in summary)
-    assert next(b for b in app.button if b.label=='开始研究').disabled
+    assert next(b for b in app.button if b.label=='确认并开始研究').disabled
     next(b for b in app.button if b.label=='返回修改研究条件').click().run()
     assert app.text_input(key='home_edelta').value=='12.5'
     app.text_area(key='home_question').set_value('最大场强不超过30')
     app.text_input(key='home_emax').set_value('40')
-    next(b for b in app.button if b.label=='检查研究条件').click().run()
+    next(b for b in app.button if b.label=='开始研究').click().run()
     assert app.error and 'prepared' not in app.session_state
     assert '请确认' in app.error[0].value
-    assert not any(b.label=='开始研究' for b in app.button)
+    assert not any(b.label=='确认并开始研究' for b in app.button)
 
 
 def test_delta_only_task_and_child_leave_history_untouched(tmp_path,monkeypatch):

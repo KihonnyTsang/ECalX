@@ -14,10 +14,14 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFESTS = {'audit/public_files.txt', 'audit/SHA256SUMS'}
-ROOT_FILES = {'.gitignore', 'LICENSE', 'README.md', 'app.py', 'pyproject.toml', 'requirements-tested.txt', 'requirements-paper-mvp-tested.txt', 'MANIFEST.in'}
+ROOT_FILES = {'.gitignore', 'LICENSE', 'README.md', 'CHANGELOG.md', 'app.py', 'pyproject.toml', 'requirements-tested.txt', 'requirements-paper-mvp-tested.txt', 'MANIFEST.in'}
 PUBLIC_DIRS = {'src', 'ecalx_local', 'tests', 'examples', 'docs', 'scripts', 'audit', '.streamlit'}
 GENERATED = {'.git', '.venv', 'build', 'dist', '.pytest_cache', '__pycache__'}
 SUFFIXES = {'.py', '.md', '.toml', '.csv', '.json', '.css', '.txt'}
+SCREENSHOTS = {'docs/screenshots/' + name for name in (
+    '01-workbench-home.jpg', '02-goal-and-elements.jpg',
+    '03-generation-chemical-checks.jpg', '04-virtual-experiment-ei.jpg',
+    '05-bst-delta-t.jpg', '06-candidate-results.jpg', '07-research-report.jpg')}
 FAKE_KEYS = {
     'tests/test_byo.py': {'sk-BYO_FAKE_KEY_NEVER_SENT'},
     'tests/test_http_contract.py': {'sk-TEST_HTTP_ONLY_NEVER_SENT'},
@@ -56,6 +60,16 @@ def sensitive_literals(rel, raw):
 
 def inventory():
     files, errors = {}, []
+    screenshot_code = {}
+    try:
+        review = json.loads((ROOT/'audit/screenshots.json').read_text())
+        screenshot_hashes = {r['file']: r['sha256'] for r in review['screenshots']}
+        screenshot_code = review['code_sha256']
+        if set(screenshot_hashes) != SCREENSHOTS:
+            errors.append('screenshot inventory mismatch')
+    except (OSError, KeyError, TypeError, ValueError):
+        screenshot_hashes = {}
+        errors.append('missing/invalid screenshot review manifest')
     for p in sorted(ROOT.rglob('*')):
         parts = p.relative_to(ROOT).parts
         if any(part in GENERATED or part.endswith('.egg-info') for part in parts):
@@ -65,17 +79,34 @@ def inventory():
             errors.append(rel + ': symlink'); continue
         if not p.is_file():
             continue
+        # Setuptools adds these text-only envelope files to an sdist. They are
+        # not frozen source files, but must still pass the sensitive-text scan.
+        if not (ROOT/'.git').exists() and rel in {'PKG-INFO', 'setup.cfg'}:
+            errors.extend(sensitive_literals(rel, p.read_bytes()))
+            continue
         if rel not in ROOT_FILES and parts[0] not in PUBLIC_DIRS:
             errors.append(rel + ': outside public scope')
-        if rel not in ROOT_FILES and rel not in MANIFESTS and p.suffix not in SUFFIXES:
+        if rel not in ROOT_FILES and rel not in MANIFESTS and p.suffix not in SUFFIXES and rel not in SCREENSHOTS:
             errors.append(rel + ': unsupported public file type')
         if any(part in {'data', 'models', 'raw', 'var', 'tasks', 'config'} for part in parts[:-1]) and parts[0] != 'src':
             errors.append(rel + ': private asset directory')
         if p.name.startswith('.env') or p.name in {'OWNER_APPROVAL.json', '.DS_Store'}:
             errors.append(rel + ': forbidden file')
         raw = p.read_bytes()
-        errors.extend(sensitive_literals(rel, raw))
+        if rel in SCREENSHOTS:
+            if digest(raw) != screenshot_hashes.get(rel):
+                errors.append(rel + ': screenshot checksum mismatch')
+            if not raw.startswith(b'\xff\xd8\xff') or not raw.endswith(b'\xff\xd9') or len(raw) > 2_000_000:
+                errors.append(rel + ': invalid/oversized JPEG')
+            if b'Exif\x00\x00' in raw or b'http://ns.adobe.com/xap/' in raw:
+                errors.append(rel + ': image metadata must be removed')
+        else:
+            errors.extend(sensitive_literals(rel, raw))
         files[rel] = digest(raw)
+    runtime_files = {rel: sha for rel, sha in files.items()
+                     if rel.startswith(('ecalx_local/', 'src/')) and Path(rel).suffix in {'.py', '.css', '.csv'}}
+    if screenshot_code != runtime_files:
+        errors.append('screenshots do not match current runtime source')
     # An ignored build/workspace file must never sneak into a Git commit.
     if (ROOT/'.git').exists():
         tracked = subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0')
@@ -90,7 +121,7 @@ def main():
     files, errors = inventory()
     version = tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['version']
     package = (ROOT/'src/ecalx/__init__.py').read_text()
-    if version != '0.2.0b2' or '__version__ = "0.2.0b2"' not in package:
+    if version != '0.2.0b3' or '__version__ = "0.2.0b3"' not in package:
         errors.append('project/package version mismatch')
     report = {'version': version, 'status': 'PASS' if not errors else 'FAIL',
               'scanned_public_files': len(set(files) | MANIFESTS | {'audit/security_scan.json'}),

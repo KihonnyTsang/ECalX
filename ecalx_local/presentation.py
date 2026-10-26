@@ -87,6 +87,18 @@ def report_markdown(task):
         '生成器另读全库，温度/电场仅影响种子优先级；候选比例来自化学规则网格，没有计算目标条件下的物性。']
     if task.get('input_snapshot', {}).get('pending'):
         lines += ['', '保留为未量化文本（不作为硬筛选条件）：', *task['input_snapshot']['pending']]
+    for result in task.get('literature_results', []):
+        point = result['point']
+        lines += ['', '## 文献曲线插值', '',
+                  f"{point['composition']} · {point['temperature_K']:g} K · 标称撤场幅值 {point['nominal_delta_E_kV_cm']:g} kV/cm。",
+                  f"ΔT插值估计：约{point['delta_T_magnitude_K']:.2f} K。不是实测值或通用AI预测。",
+                  '仅适用于BST块体陶瓷；'+point['protocol_note'],
+                  f"DOI：{point['source_doi']}；来源：digitized文献读图；数据SHA256：{point['source_csv_sha256']}。",
+                  '204个相关读图点 / 12条曲线 / 1篇论文，不代表204次独立实验；不并入独立实验观测。',
+                  f"温度覆盖：{point['temperature_coverage_K']} K。参考组成与权重："]
+        lines += [f"- x={r['sr_molar_fraction']:g} · 权重{r['composition_weight']:.1%} · 图{r['figure']}。"
+                  for r in point['reference_sources']]
+        lines += ['', '支撑曲线与原始读图点随本次结构化JSON结果保存。']
     for c in cards:
         lines += ['', '### ' + c['formula'], '', '身份：generated_unverified；ΔT 预测：unknown K（无可靠预测）。',
                   c['reason'], '独立化学校验：' + ('通过；不代表结构或性能验证。' if c['chemical_check'] else '尚未执行。'), c['gaps']]
@@ -142,4 +154,6 @@ def report_markdown(task):
         lines += ['- ' + TOOL_LABELS[c['name']] + '：' + c['output']['status']]
     if task['status']!='COMPLETED':
         lines += ['', '这是未完成任务的阶段报告，不代表研究成功完成。']
-    return '\n'.join(lines) + '\n'
+    from .element_research import report_section
+    from .candidate_delta_t import report_lines
+    return '\n'.join(lines) + '\n' + report_section(task) + '\n' + '\n'.join(report_lines(task,cards)) + '\n'

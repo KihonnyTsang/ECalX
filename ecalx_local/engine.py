@@ -58,7 +58,7 @@ class LocalWorkflow(DeterministicClient):
                 c['arguments']['steps'] = ['search_material_evidence', 'generate_material_candidates',
                                           'validate_chemical_constraints', 'generate_research_report']
             if c['name'] == 'generate_material_candidates':
-                c['arguments'] = {'max_candidates':4}
+                c['arguments'] = {'max_candidates':task.get('local_candidate_limit',4)}
             if c['name'] == 'finish_research':
                 c['arguments']['findings'] = [{'call_id':cid, 'pointer':''} for cid,o in results if o['status']=='OK'][-16:]
         reply.model = self.model
@@ -72,14 +72,34 @@ class ProductTools(ScientificTools):
             self.repository = ReadOnlyEvidence(task['evidence_snapshot'])
         if name == 'generate_material_candidates':
             from .evidence_matching import enrich_seed_coverage
+            if task.get('input_snapshot',{}).get('allowed_elements'):
+                from .element_research import generate_from_elements
+                return generate_from_elements(task['goals_request'],self.repository,
+                    task['input_snapshot']['allowed_elements'],args.max_candidates)
             result = super().execute(name, args, task, key)
             return enrich_seed_coverage(result, self.repository.records(), task['goals_request'])
+        elements=task.get('input_snapshot',{}).get('allowed_elements')
+        if name=='validate_chemical_constraints' and elements:
+            from ecalx.materials.chemistry import parse_formula
+            if set(parse_formula(args.formula))-set(elements):
+                raise ValueError('候选含允许范围外元素')
         if name != 'search_material_evidence':
             return super().execute(name, args, task, key)
         from .conditions import EvidenceSnapshot, condition_summary, protocol_evidence
         from .evidence_matching import discover
         task['checkpoint']()
-        snapshot = EvidenceSnapshot(self.repository.records())
+        records=self.repository.records()
+        if elements:
+            from ecalx.materials.chemistry import parse_formula
+            filtered=[]
+            for record in records:
+                try:
+                    if set(parse_formula(record.formula_normalized or record.formula_raw))<=set(elements):
+                        filtered.append(record)
+                except ValueError:
+                    pass
+            records=filtered
+        snapshot = EvidenceSnapshot(records)
         request = task['goals_request']
         result = discover(request, snapshot)
         result['query_counts'] = {k: len(result[k]) for k in ('candidates', 'evidence_only', 'excluded')}
@@ -107,8 +127,9 @@ class ProductTools(ScientificTools):
         allowed = CORE if not PERSONAL or task['client_mode'] == 'LIVE_LLM' else LOCAL
         if name not in allowed:
             raise ValueError('该操作不在当前应用权限中')
-        if name == 'generate_material_candidates' and args.max_candidates > 4:
-            raise ValueError('本次任务最多提出4个候选；参数未被自动改写')
+        limit=10 if task.get('input_snapshot',{}).get('allowed_elements') and task['client_mode']!='LIVE_LLM' else 4
+        if name == 'generate_material_candidates' and args.max_candidates > limit:
+            raise ValueError(f'本次任务最多提出{limit}个候选；参数未被自动改写')
         return super().preview(name, args, task, key)
 
 
@@ -128,6 +149,44 @@ class LocalAgent(ResearchAgent):
             super().__init__(SCIENCE_ROOT, storage, evidence, tools_factory=lambda root,repo: ProductTools(root,repo,None,None))
         old = self.tools
         self.tools = ProductTools(old.root, old.repository, old.virtual, old.real)
+
+    def read_connection(self):
+        """UI reads never acquire Store.connect()'s BEGIN IMMEDIATE write lock."""
+        import sqlite3
+        return sqlite3.connect(self.path.as_uri()+'?mode=ro', uri=True, timeout=.5)
+
+    def get(self, tid):
+        with self.read_connection() as db:
+            row = db.execute('SELECT payload FROM research_tasks WHERE id=?', (tid,)).fetchone()
+        if row is None:
+            from ecalx.experiments.contracts import ExperimentError
+            raise ExperimentError('未知任务')
+        return json.loads(row[0])
+
+    def has_task(self, tid):
+        with self.read_connection() as db:
+            return db.execute('SELECT 1 FROM research_tasks WHERE id=?', (tid,)).fetchone() is not None
+
+    def task_page(self, *, limit=12, offset=0, query=''):
+        """Only bounded title/status metadata; never deserialize historical receipts."""
+        if not 1 <= limit <= 50 or offset < 0:
+            raise ValueError('历史分页参数无效')
+        # Empty searches use count(*) without parsing any historical payload.
+        where = "WHERE instr(ui_title(json_extract(payload,'$.original'),json_extract(payload,'$.frozen_goals')), ?) > 0" if query else ''
+        parameters=(query.casefold(),) if query else ()
+        with self.read_connection() as db:
+            if query:
+                from .titles import research_title
+                db.create_function('ui_title',2,lambda original,goals:research_title(
+                    {'original':original,'frozen_goals':json.loads(goals or '{}')}).casefold())
+            total = db.execute('SELECT count(*) FROM research_tasks '+where, parameters).fetchone()[0]
+            rows = db.execute("""SELECT id, json_extract(payload,'$.original'),
+                json_extract(payload,'$.status'), json_extract(payload,'$.frozen_goals'),
+                (SELECT at FROM audit WHERE action='CREATE_TASK' AND subject=research_tasks.id ORDER BY seq LIMIT 1)
+                FROM research_tasks """+where+' ORDER BY rowid DESC LIMIT ? OFFSET ?',
+                (*parameters,limit,offset)).fetchall()
+        return ([{'id':r[0], 'original':r[1], 'status':r[2],
+                  'frozen_goals':json.loads(r[3] or '{}'), 'created_at':r[4]} for r in rows], total)
 
     def create_task(self, original, client, budget=None):
         task = super().create_task(original, client, budget)
@@ -158,6 +217,20 @@ class LocalAgent(ResearchAgent):
         value.pop('evidence_snapshot',None)
         return value
 
+    def save_literature_result(self, tid, result):
+        """Attach a local receipt atomically, without altering the agent's state."""
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM research_tasks WHERE id=?', (tid,)).fetchone()
+            if not row:
+                raise ValueError('未知研究')
+            task = json.loads(row[0])
+            from .bst_research import signature
+            if result['input_sha256'] != signature(task['input_snapshot']):
+                raise ValueError('研究条件已变化')
+            task['literature_results'] = [result]
+            db.execute('UPDATE research_tasks SET payload=? WHERE id=?',
+                       (json.dumps(task, ensure_ascii=False), tid))
+
     def available_tools(self, task):
         allowed = CORE if not PERSONAL or task['client_mode'] == 'LIVE_LLM' else LOCAL
         if task['status'] == 'DRAFT' and not task.get('plan'):
@@ -171,7 +244,7 @@ class LocalAgent(ResearchAgent):
             result = [t for t in result if t['name'] != 'finish_research' or constrain_finish(t, task)]
         for tool in result:
             if tool['name'] == 'generate_material_candidates':
-                tool['parameters']['properties']['max_candidates']['maximum'] = 4
+                tool['parameters']['properties']['max_candidates']['maximum'] = (10 if task.get('input_snapshot',{}).get('allowed_elements') and task['client_mode']!='LIVE_LLM' else 4)
         return result
 
     def confirm_plan(self, tid, **kwargs):
@@ -201,6 +274,10 @@ class LocalAgent(ResearchAgent):
     def context(self, task):
         if task['client_mode'] != 'LIVE_LLM':
             messages = super().context(task)
+            if task.get('input_snapshot',{}).get('allowed_elements'):
+                header=json.loads(messages[0]['content'])
+                header['local_candidate_limit']=10
+                messages[0]['content']=json.dumps(header,ensure_ascii=False)
             # Original runtime bounds large feedback to two candidates. For the
             # local selector, expose all four identities (no raw source payload)
             # so every actual candidate receives its own independent check.

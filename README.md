@@ -1,18 +1,12 @@
-# ECalX · BYO API & Data
+# ECalX · 材料研究工作台
 
-**v0.2.0-beta.2 发布候选**（Python版本号 `0.2.0b2`）。这是基于现有Git历史准备的本地候选，尚未推送或创建Release。无需作者电脑上的工程、模型或私人数据库。
+**v0.2.0-beta.3** · Python 包 `0.2.0b3` · 本地发布候选，等待最终确认。
 
-ECalX是本地材料研究工作台。“BYO”是Bring Your Own，即使用你自己的API和数据：
-
-| 用途 | 需要准备什么 | 能做什么 |
-| --- | --- | --- |
-| BYO API · 自备API | 可选：你自己的SiliconFlow Key和可用DeepSeek模型 | 在线研究与追问；不填Key也可使用本地功能 |
-| BYO Data · 自备材料数据 | 你自己的CSV、Excel，或本地可搜索PDF | 导入资料、检索证据、探索组成候选、查看报告 |
-| BST研究性插值 | 合法取得且哈希匹配的204点脱敏参考CSV | 在已有BST曲线覆盖内估计ΔT；不能替代实验验证 |
+使用自己的材料数据和可选 API，在本机完成：研究目标与元素输入 → 候选生成 → 化学校验 → M4 虚拟实验与主动学习 → 温变计算 → 研究结果 → 报告下载。
 
 ## 安装与启动
 
-使用Python 3.11或更高版本。下载本候选源码并解压，进入ECalX目录后执行：
+Python 3.11+。下载本版本源码并进入 ECalX 目录后执行：
 
 ```sh
 python3.11 -m venv .venv
@@ -21,41 +15,60 @@ python -m pip install .
 ecalx
 ```
 
-打开终端显示的本机地址。默认只监听127.0.0.1，不收集Streamlit使用统计。源码也可运行：
+打开终端显示的本机地址。默认监听 `127.0.0.1`，关闭 Streamlit 使用统计。源码入口：
 
 ```sh
 python -m streamlit run app.py --server.address=127.0.0.1 --browser.gatherUsageStats=false
 ```
 
-仅实测macOS ARM64/Python 3.11；其他平台未实测。完整依赖由pip安装，不需要训练模型或CUDA。源码和wheel使用相同的包内BST计算代码。
+Windows 可用 `.venv\Scripts\activate` 激活环境；本次实测平台为 macOS ARM64 / Python 3.11，其他平台未实测。依赖通过 pip 安装，无需作者的相邻工程、数据库、模型或 CUDA。
 
-## BYO Data：导入你自己的材料资料
+## 使用自己的数据与 API
 
-进入“设置→数据库构建”，导入CSV或Excel并映射字段，或本地解析PDF后核对保存。CSV/Excel至少要有材料化学式，已有温度、电场、ΔT等数值需注明单位；未知条件保持空白。可用[合成软件示例](examples/README.md)熟悉操作，示例不是科研证据。
+1. 在“设置 → 数据库构建”导入 CSV/Excel 并核对字段，或本地解析可搜索 PDF 后人工核对。至少提供化学式和可追溯来源；未知温度、电场、性能保持空白。[原创合成示例](examples/README.md)可用于完整软件流程演练，不是科研证据。
+2. 在研究工作台填写研究目标、允许元素和排除元素。其他条件选填，不暗设无铅、温区或材料家族。程序从可追溯种子按既有规则枚举组成并逐个执行独立化学校验；没有适用来源时显示空态。
+3. 确认研究条件和工具计划后执行。完成后可在同一研究中运行严格准入的 M4 虚拟实验、固定 RBF GP/EI 主动学习和模拟排名；域外候选保留待研究，不补数字。
+4. 在历史研究重开任务，在研究结果查看分页卡片与依据，在研究报告下载 Markdown 和完整 JSON。大记录、图表和下载按需生成，避免默认渲染巨量 JSON 导致卡顿。
 
-在“研究工作台”填写问题、检查条件，运行证据检索、组成候选生成和独立化学校验，再查看报告或追问。新候选的正式性能保持unknown，M5正式推荐未启用。BST工具的材料和条件范围不限制这些普通研究功能。
+本地研究无需 API Key。在“设置 → API 配置”可选填自己的 SiliconFlow Key 与可用、支持 Function Calling 的 DeepSeek 模型。在线执行前仍需确认用量及发送范围，供应商可能收费；本次未调用付费 API，未宣称已通过真实供应商在线验收。
 
-资料、历史和报告默认保存到 `~/.local/share/ecalx`。可在启动前指定 `ECALX_WORKSPACE`。
+数据和历史默认保存在 `~/.local/share/ecalx`（可设 `ECALX_WORKSPACE`）；Key 和 API 配置默认保存在 `~/.config/ecalx`（可设 `ECALX_CONFIG_DIR`）。不要提交自己的配置、资料和工作区。
 
-## BYO API：可选的在线研究
+## ΔT 与模拟评分
 
-进入“设置→API配置”，填写自己的SiliconFlow API Key和账户可用、支持Function Calling的DeepSeek模型。在线请求会由供应商收费；开始前确认用量和发送范围。没有Key时仍可导入数据和运行本地研究。
+| 结果 | 来源与条件 | 如何理解 |
+| --- | --- | --- |
+| 模拟评分 | M4 `maxwell-toy-1` 未校准演示环境，按同一 run 的冻结条件排序 | 不带 K，不代表真实 ΔT、实验性能或材料最优结论 |
+| 文献插值 ΔT | 工作台内部 BST 插值器；须自备合法取得且哈希匹配的参考 CSV | 文献撤场正温降幅值的研究性参考，带 K；不代表当前加载路径实测结果 |
+| RF/XGBoost 研究性 ΔT | 保留既有个人模式接口与卡片连接；须显式配置原科研工程和匹配工件 | 文献原报告 ΔT 标签的离线估计，未经独立最终外测；公开包不附私人权重、训练集或科研 ML 工程 |
 
-Key及配置保存在 `~/.config/ecalx`，可用 `ECALX_CONFIG_DIR` 指定目录；不要将Key写入研究问题或CSV。原始文件、完整数据库和模型文件不向供应商发送。已有请求/Token限制继续生效；真实BYO供应商在线验收尚未完成，本轮没有调用付费API。
+BST 适用范围：未掺杂 Ba₁₋ₓSrₓTiO₃ **块体陶瓷**，x=0.05–0.35；标称撤场幅值仅 10、20、30 kV/cm；温度限于支撑曲线实际覆盖交集，不外推。Ca 掺杂、薄膜及越界条件不输出插值值。
 
-## BST电卡插值：先提供参考数据，再计算
+先在“设置 → 数据库构建 → 参考曲线”导入一次有权使用的冻结 204 点 CSV（原版或脱敏副本），再在研究工作台填写 `Ba0.8Sr0.2TiO3`、温度下限和上限均为 `303` K、ΔE `20` kV/cm，点击“计算电卡温变”，可得约 **1.15 K** 的文献参考值。支撑曲线按需展开；结果可随研究保存，并写入报告。参考 CSV 缺失或校验失败时不提供该数值。
 
-进入侧栏“BST电卡插值”，点击“选择参考CSV”。**未提供匹配的参考数据时，BST插值不可计算，页面不会显示1.54 K或任何替代数值。** 软件不附带、也不会自动下载原204条数据、论文PDF或原图，因为当前未确认这些数字化数据的公开再分发许可。
+参考数据是 1 篇论文、12 条曲线的 204 个相关读图点，不是 204 次独立实验。论文 PDF、原图和数字化数值集均不分发；[空白格式模板](ecalx_local/templates/BST_reference_template.csv)不能直接用于计算。来源：[Dai 等，DOI 10.1111/ijac.13384](https://doi.org/10.1111/ijac.13384)。详见[计算方法](docs/bst_interpolation_20261021.md)、[数据许可](docs/bst_data_license.md)和[本版科学功能核验](docs/scientific_capabilities.md)。
 
-提供[空白CSV模板](ecalx_local/templates/BST_reference_template.csv)和[字段填写说明](docs/bst_csv_format.md)。模板可用表格软件或文本编辑器填写，但不含参考数值，也不是可计算数据集。当前功能仍只接受合法取得、SHA256匹配的冻结204点脱敏CSV；任意自行填写或重新读图的数据不会自动通过校验。普通BYO材料数据不受这个冻结版本要求限制。
+本次已实际检查原 RF/XGBoost direct/indirect 四种离线推理及拒答边界；公开 BYO 安装仍明确显示模型不可用。不能把未知路径改写成已知路径，不能以模拟评分代替 ΔT，也不能将研究性估计宣传为实验验证。所有生成组成仍为 `generated_unverified`，正式 M5 推荐未启用。
 
-取得匹配参考数据后，填写Sr摩尔分数x（`0.20`表示20%，不是`20`）、温度K和文献标称撤场幅值kV/cm。支持范围为Ba₁₋ₓSrₓTiO₃块体陶瓷，x=0.05–0.35，场仅10、20、30 kV/cm，温度按所需参考曲线的实际交集判断；超范围不计算。
+## 项目演示
 
-页面区分“文献原始读图值”“温度插值”“组成插值”，显示参考组成、权重、DOI与图号。只在成功加载匹配数据后，x=0.20、323 K、30 kV/cm的示例才会计算并显示“ΔT插值估计：约1.54 K”。这来自已知曲线的研究性插值，不是通用AI预测或新材料性能的实验验证。
+以下为最终 beta.3 实际浏览器截图。候选生成使用公开 CC0 合成软件输入；ΔT 展示另使用仅保留在本机、哈希匹配的文献参考文件。公开包不包含该参考数值集，安装后需自行合法导入。截图中的分值与温变分别标注，完整文献曲线和私人实验记录不出现在演示图中。[截图说明与来源](docs/screenshots/README.md)。
 
-来源：Dai等，[DOI：10.1111/ijac.13384](https://doi.org/10.1111/ijac.13384)，图8A–D，digitized读图数据。完整使用方法、数据哈希及许可处理见[BST说明](docs/bst_interpolation_20261021.md)和[许可核查](docs/bst_data_license.md)。也可通过 `ECALX_BST_REFERENCE_CSV` 显式指定本机合法参考文件。
+| 研究工作台 | 研究目标与元素输入 |
+| --- | --- |
+| ![研究工作台](docs/screenshots/01-workbench-home.jpg) | ![研究目标与元素输入](docs/screenshots/02-goal-and-elements.jpg) |
 
-## 验证与许可
+| 候选生成与化学校验 | 虚拟实验与主动学习 |
+| --- | --- |
+| ![候选生成与化学校验](docs/screenshots/03-generation-chemical-checks.jpg) | ![虚拟实验与主动学习](docs/screenshots/04-virtual-experiment-ei.jpg) |
+
+| 温变计算 | 研究结果 |
+| --- | --- |
+| ![BST温变计算](docs/screenshots/05-bst-delta-t.jpg) | ![研究结果卡片](docs/screenshots/06-candidate-results.jpg) |
+
+![研究报告与下载](docs/screenshots/07-research-report.jpg)
+
+## 验证与版本说明
 
 ```sh
 python -m pip install '.[dev]'
@@ -63,8 +76,8 @@ python -B -m pytest -q
 python scripts/audit_release.py
 ```
 
-已有独立候选的182项通过记录原样保留，本候选的版本、安装和测试结果见[验证说明](docs/validation.md)。无合法BST数据时，相关数值检查会明确跳过，不能把跳过当作计算成功。发布文件和哈希见 `audit/public_files.txt`、`audit/SHA256SUMS`。
+数值集未分发，未配置 `ECALX_BST_TEST_CSV` 的数值集成测试会明确跳过；本次另以合法本地冻结数据执行完整数值测试。见[验证结果](docs/validation.md)、[更新记录](CHANGELOG.md)与[可直接使用的 Release Notes](docs/release_notes.md)。
 
-源码遵循[MIT许可](LICENSE)，第三方依赖保留各自许可。MIT不覆盖论文、用户数据或未获再分发许可的数字化数据；后续如确认相关权利，再单独决定是否公开数值数据。
+源码沿用 [MIT License](LICENSE)。第三方依赖保留各自许可；论文、用户数据、私人模型和科研资产不因项目 MIT 许可而获得再分发许可。详见[发行范围](docs/release_scope.md)、[第三方许可](docs/third_party.md)及 `audit/public_files.txt`、`audit/SHA256SUMS`。
 
-**English:** Bring your own API key and materials data. Local research works without an API key. BST is research literature interpolation, not a general AI performance predictor. Reference measurements are not bundled: provide a legally obtained, checksum-matching reference CSV. The blank CSV template documents the format; it cannot produce a calculation by itself.
+**English:** A local materials research workbench with bring-your-own data and optional API. Element-constrained candidates, independent chemistry checks, M4 simulation and GP/EI optimization, traceable literature interpolation, history and downloadable reports. Simulation scores are not ΔT. BST reference data and private ML artifacts are not bundled; research estimates are not experimentally verified predictions.

@@ -17,6 +17,9 @@ def no_external_network(monkeypatch):
 def isolation(tmp_path,monkeypatch):
     from ecalx_local import configuration,byo_policy,engine,import_data,setup_ui
     root=tmp_path/'workspace'
+    import ecalx_local
+    monkeypatch.setattr(ecalx_local, 'SCIENCE_ROOT', root)
+    monkeypatch.delenv('ECALX_BST_REFERENCE_CSV', raising=False)
     for mod in (configuration,byo_policy,engine,import_data,setup_ui):monkeypatch.setattr(mod,'SCIENCE_ROOT',root)
     monkeypatch.setenv('ECALX_CONFIG_DIR',str(tmp_path/'config'))
     monkeypatch.delenv('SILICONFLOW_API_KEY',raising=False)

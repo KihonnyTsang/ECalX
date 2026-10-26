@@ -1,0 +1,50 @@
+{
+  "scope": "v0.2.0-beta.2 release candidate",
+  "version": "0.2.0b2",
+  "target_tag": "v0.2.0-beta.2",
+  "github_main_and_beta1": "ca5850e877f18e64a42533f8f9a497a4238c6308",
+  "prior_182_test_record": {
+    "preserved": true,
+    "sha256": "5e2ee5a3daba12e2c8a5f92c5ba3e9b6ded0e81095bc8bb08fa790de3497c02c"
+  },
+  "current_tests": {
+    "passed": 182,
+    "failed": 0,
+    "skipped": 0,
+    "legal_local_reference_explicitly_supplied": true
+  },
+  "fresh_installations": {
+    "source": true,
+    "wheel": true,
+    "system_site_packages": false,
+    "pip_check_passed": true,
+    "python": "3.11.16",
+    "streamlit": "1.66.0",
+    "platform": "macOS ARM64",
+    "dependencies_reused_via_pip_wheel_cache_only": true
+  },
+  "installed_interface_checks": {
+    "method": "Streamlit AppTest on installed package with source access and network blocked",
+    "version_display": true,
+    "missing_data_refused": true,
+    "blank_template_refused": true,
+    "template_packaged": true,
+    "template_fields": 43,
+    "example_after_valid_data": "ΔT插值估计：约1.54 K",
+    "temperature_402_900001_refused": true,
+    "old_result_removed": true
+  },
+  "installed_cli": {
+    "local_http_health": 200,
+    "terminated_after_check": true
+  },
+  "bst_code_unchanged_from_prior_candidate": "AST identical; trailing blank line removed only",
+  "reference_data_pdf_or_original_images_bundled": false,
+  "data_license_status": "redistribution unconfirmed; explicit user-supplied matching data only",
+  "new_models": 0,
+  "training_runs": 0,
+  "paid_api_calls": 0,
+  "git_push_performed": false,
+  "github_release_performed": false,
+  "beta2_tag_created": false
+}

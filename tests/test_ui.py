@@ -6,7 +6,7 @@ def test_ui_initial_and_config(tmp_path,monkeypatch):
     monkeypatch.setattr(ecalx_local,'STORAGE',tmp_path/'tasks')
     at=AppTest.from_file(str(Path(__file__).parents[1]/'app.py')).run(timeout=20)
     assert not at.exception
-    assert any('检查研究条件'==b.label for b in at.button)
+    assert any('开始研究'==b.label for b in at.button)
     next(b for b in at.button if b.label=='设置').click().run()
     assert not at.exception
     assert [x.label for x in at.text_input]==['API Key','模型名称']
@@ -15,17 +15,17 @@ def test_ui_initial_and_config(tmp_path,monkeypatch):
     assert not at.expander[0].proto.expanded
     from ecalx_local.configuration import read_config, config_dir
     at.text_input[0].set_value('TEST_ONLY_NOT_A_REAL_KEY')
-    next(b for b in at.button if b.label=='仅保存本机配置').click().run()
+    next(b for b in at.button if b.label=='保存配置').click().run()
     assert any('首次配置请填写模型 ID' in e.value for e in at.error)
     assert not (config_dir()/'settings.json').exists()
     assert not (config_dir()/'.env').exists()
     at.text_input[0].set_value('TEST_ONLY_NOT_A_REAL_KEY')
     at.text_input[1].set_value('invalid-model')
-    next(b for b in at.button if b.label=='仅保存本机配置').click().run()
+    next(b for b in at.button if b.label=='保存配置').click().run()
     assert at.error and not (config_dir()/'settings.json').exists()
     at.text_input[0].set_value('TEST_ONLY_NOT_A_REAL_KEY')
     at.text_input[1].set_value('deepseek-ai/DeepSeek-V4-Flash')
-    next(b for b in at.button if b.label=='仅保存本机配置').click().run()
+    next(b for b in at.button if b.label=='保存配置').click().run()
     assert not at.exception and any('已保存' in s.value for s in at.success)
     assert read_config()['model']=='deepseek-ai/DeepSeek-V4-Flash'
     key_file=config_dir()/'.env'
@@ -38,10 +38,10 @@ def test_ui_initial_and_config(tmp_path,monkeypatch):
     assert any('当前已配置模型：deepseek-ai/DeepSeek-V4-Flash' in c.value for c in at.caption)
     at.text_input[0].set_value('')
     at.text_input[1].set_value('')
-    next(b for b in at.button if b.label=='仅保存本机配置').click().run()
+    next(b for b in at.button if b.label=='保存配置').click().run()
     assert key_file.read_bytes()==before and read_config()==saved
     at.text_input[1].set_value('deepseek-ai/DeepSeek-V3')
-    next(b for b in at.button if b.label=='仅保存本机配置').click().run()
+    next(b for b in at.button if b.label=='保存配置').click().run()
     assert not at.exception and any('已保存' in s.value for s in at.success)
     assert read_config()['model']=='deepseek-ai/DeepSeek-V3'
     assert read_config()['usage_limits']==saved['usage_limits']

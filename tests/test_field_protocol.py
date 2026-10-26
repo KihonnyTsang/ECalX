@@ -185,7 +185,7 @@ def test_ui_pulse_review_and_edit(isolation,tmp_path):
     assert at.selectbox(key='home_protocol').value == UNKNOWN
     at.selectbox(key='home_protocol').set_value(PULSE)
     at.text_input(key='home_peak').set_value('10')
-    next(b for b in at.button if b.label=='检查研究条件').click().run()
+    next(b for b in at.button if b.label=='开始研究').click().run()
     assert not at.exception
     assert any('ASSUMED' in m.value for m in at.markdown)
     assert at.session_state['prepared']['field_protocol']['reference_path_kV_cm'] == [0,10,10,0]

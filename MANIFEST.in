@@ -1,6 +1,7 @@
 # User manuscripts and local extraction state are never release assets.
-global-exclude *.pdf *.PDF *.png *.jpg *.jpeg *.sqlite3 *.sqlite3-wal *.sqlite3-shm
+global-exclude *.pdf *.PDF *.png *.jpeg *.sqlite3 *.sqlite3-wal *.sqlite3-shm
 global-exclude dai_direct_deltaT_T.csv
+global-exclude *.joblib *.pkl *.db *.sqlite *.sqlite3* .env .env.* .DS_Store
 prune raw
 prune paper_drafts
 prune var
@@ -14,3 +15,12 @@ include docs/bst_interpolation_20261021.md
 include docs/bst_data_license.md
 include ecalx_local/templates/BST_reference_template.csv
 include docs/bst_csv_format.md
+recursive-include docs/screenshots *.jpg *.md
+include CHANGELOG.md
+include .gitignore app.py README.md LICENSE requirements-tested.txt requirements-paper-mvp-tested.txt
+include .streamlit/config.toml
+recursive-include docs *.md *.json
+recursive-include audit *.json *.txt SHA256SUMS
+recursive-include scripts *.py
+recursive-include examples *.csv *.md
+recursive-include tests *.py

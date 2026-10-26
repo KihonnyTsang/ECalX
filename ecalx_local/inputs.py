@@ -23,6 +23,11 @@ def prepare_inputs(raw):
             finite_number(value, name)
     symbols = [s for s in re.split(r'[,，、;；\s]+', raw.get('exclude', '').strip()) if s]
     validate_symbols(symbols)
+    allowed = [s for s in re.split(r'[,，、;；\s]+', str(raw.get('allowed_elements') or '').strip()) if s]
+    validate_symbols(allowed)
+    if set(allowed) & set(symbols):
+        raise ValueError('允许元素与排除元素冲突')
+    raw['allowed_elements'] = '、'.join(dict.fromkeys(allowed))
     raw['elements'] = '排除 ' + ','.join(symbols) if symbols else ''
     kind = raw.pop('field_kind', '上限')
     value = raw.pop('field_value', '')
@@ -60,7 +65,9 @@ def prepare_inputs(raw):
             raise ValueError('已填写明确端点，请选择自定义电场协议；不能标为协议未知')
         protocol = reference_protocol(CUSTOM if endpoints else choice,
             start=goals['e_start_kV_cm'], end=goals['e_end_kV_cm'], delta=goals['delta_E_kV_cm'])
-    return {'raw': raw, 'goals': goals, 'field_protocol': protocol, 'pending': list(parsed.pending),
+    if allowed and set(goals['include_elements']) - set(allowed):
+        raise ValueError('必须包含的元素不在允许元素集合内')
+    return {'allowed_elements':allowed, 'raw': raw, 'goals': goals, 'field_protocol': protocol, 'pending': list(parsed.pending),
             'summary': goals_summary(goals) + (protocol_lines(protocol) if choice == PULSE else [])}
 
 

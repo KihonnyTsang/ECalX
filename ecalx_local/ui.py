@@ -28,7 +28,7 @@ def badge(text, tone='neutral'):
 
 
 def section_header(kicker, title, description=''):
-    st.markdown(f'<div class="eyebrow">{escape(kicker)}</div><h1>{escape(title)}</h1>'
+    st.markdown(f'<h1>{escape(title)}</h1>'
                 + (f'<p class="intro">{escape(description)}</p>' if description else ''), unsafe_allow_html=True)
 
 
@@ -36,7 +36,7 @@ def task_status(task):
     tone = 'risk' if task['status']=='FAILED' else 'teal' if task['status']=='COMPLETED' else 'neutral'
     mode = 'DeepSeek 在线研究' if task['client_mode']=='LIVE_LLM' else '本地研究'
     st.markdown('<div class="task-meta">'+badge(STATUS_LABELS.get(task['status'],task['status']),tone)
-        +f'<span>{mode}</span><span>自动保存到本机</span></div>', unsafe_allow_html=True)
+        +f'<span>{mode}</span></div>', unsafe_allow_html=True)
 
 
 def science_note():
@@ -67,3 +67,13 @@ def evidence_message(summary):
     if summary and summary.get('amplitude_only_auxiliary_matches', 0):
         return f"有 {summary['amplitude_only_auxiliary_matches']} 条记录符合 ΔE 幅度等条件，但加电路径尚未确认。候选性能仍需验证。"
     return '当前没有符合全部研究条件的实验记录，候选材料仍需后续实验验证。'
+
+
+def input_error(error):
+    text=str(error)
+    for field,label in {'e_max_kV_cm':'电场上限','e_min_kV_cm':'电场下限',
+        'delta_E_kV_cm':'电场变化 ΔE','e_start_kV_cm':'电场起点','e_end_kV_cm':'电场终点',
+        'temperature_min_K':'温度下限','temperature_max_K':'温度上限',
+        'exclude_elements':'排除元素','include_elements':'包含元素'}.items():
+        text=text.replace(field,label)
+    return text.replace('约束冲突：','条件不一致：').replace('请修正输入后重新解析','请确认后修改')
